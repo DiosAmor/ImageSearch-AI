@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>이미지 업로드</title>
+    <script>
+        function toggleUploadType(type) {
+            document.getElementById('single-upload').style.display = (type === 'single') ? 'block' : 'none';
+            document.getElementById('folder-upload').style.display = (type === 'folder') ? 'block' : 'none';
+        }
+    </script>
+</head>
+<body>
+    <h1>이미지 업로드</h1>
+    {% if message %}
+        <p style="color:green;">{{ message }}</p>
+    {% endif %}
+    <button onclick="toggleUploadType('single')">이미지 한 장 업로드</button>
+    <button onclick="toggleUploadType('folder')">폴더 업로드</button>
+    <br><br>
+    <form id="single-upload" method="post" enctype="multipart/form-data" style="display:block;">
+        {% csrf_token %}
+        <input type="hidden" name="upload_type" value="single">
+        <input type="file" name="image" accept="image/*">
+        <button type="submit">한 장 업로드</button>
+    </form>
+    <form id="folder-upload" method="post" enctype="multipart/form-data" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="upload_type" value="folder">
+        <input type="file" name="images" accept="image/*" webkitdirectory directory multiple>
+        <button type="submit">폴더 업로드</button>
+    </form>
+</body>
+</html>

@@ -12,7 +12,7 @@ def cosine_similarity(vec1, vec2):
 
 
 media = "D:/GitHub/ImageSearch-AI/images"
-image_path = media + "/matter.png"
+image_path = media + "/test.jpg"
 print(image_path)
 
 image = Image.load_from_file(image_path)
@@ -29,8 +29,13 @@ model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
 
 embeddings = model.get_embeddings(
     image=image,
-    contextual_text="matter",
+    contextual_text="snack",
+    dimension=1408,
+)
+embeddings_2 = model.get_embeddings(
+    contextual_text="water",
     dimension=1408,
 )
 
 print(cosine_similarity(embeddings.image_embedding, embeddings.text_embedding))
+print(cosine_similarity(embeddings.image_embedding, embeddings_2.text_embedding))
