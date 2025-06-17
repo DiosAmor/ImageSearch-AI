@@ -1,0 +1,4 @@
+google-genai==1.20.0
+python-dotenv==1.0.0
+google-cloud-aiplatform==1.97.0
+numpy==2.3.0
