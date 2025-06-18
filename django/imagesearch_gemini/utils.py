@@ -61,6 +61,7 @@ def get_text_embedding(text: str) -> list[float] or None:
 def extract_exif_metadata_for_db(image_path):
     """
     EXIF에서 GPSInfo(위치), DateTimeOriginal(촬영일시), ImageUniqueID는 분리, 나머지는 dict로 묶어 반환
+    촬영 일시는 위치가 있다면 기반해서 한국 시간으로 바꿔주는 것이 좋음.
     :param image_path: 이미지 파일 경로
     :return: (gps_point, date_taken, image_unique_id, exif_json)
     """
@@ -107,10 +108,33 @@ def extract_exif_metadata_for_db(image_path):
                     elif tag_name == "ImageUniqueID":
                         image_unique_id = value
                     else:
-                        exif_dict[tag_name] = value
+                        exif_dict[tag_name] = exif_to_serializable(value)
     except Exception as e:
         exif_dict["error"] = str(e)
     return gps_point, date_taken, image_unique_id, exif_dict
+
+
+def exif_to_serializable(obj):
+    """
+    EXIF dict/list 내 JSON 직렬화 불가 타입(bytes, IFDRational 등)을 float/int/str/utf-8로 변환
+    """
+    if isinstance(obj, dict):
+        return {k: exif_to_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [exif_to_serializable(v) for v in obj]
+    elif hasattr(obj, "numerator") and hasattr(obj, "denominator"):
+        # IFDRational 등
+        try:
+            return float(obj)
+        except Exception:
+            return str(obj)
+    elif isinstance(obj, (bytes, bytearray)):
+        try:
+            return obj.decode("utf-8", errors="replace")
+        except Exception:
+            return str(obj)
+    else:
+        return obj
 
 
 if __name__ == "__main__":

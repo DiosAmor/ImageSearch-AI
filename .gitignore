@@ -1,9 +1,13 @@
 .venv
 .env
-/images
+
 *api-key.json
 
 # Ignore Python cache files
 __pycache__/
 # ignore migrations
 migrations/
+
+# Ignore Images
+/images
+/django/media

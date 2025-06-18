@@ -21,13 +21,19 @@
     <form id="single-upload" method="post" enctype="multipart/form-data" style="display:block;">
         {% csrf_token %}
         <input type="hidden" name="upload_type" value="single">
-        <input type="file" name="image" accept="image/*">
+        <input type="file" name="image" accept="image/*"><br><br>
+        <label>촬영일(선택): <input type="date" name="date_taken"></label><br>
+        <label>장소(선택): <input type="text" name="location" placeholder="예: 서울, 남산"></label><br>
+        <label>태그(쉼표로 구분): <input type="text" name="tags" placeholder="예: 여행,가족,풍경"></label><br>
         <button type="submit">한 장 업로드</button>
     </form>
     <form id="folder-upload" method="post" enctype="multipart/form-data" style="display:none;">
         {% csrf_token %}
         <input type="hidden" name="upload_type" value="folder">
-        <input type="file" name="images" accept="image/*" webkitdirectory directory multiple>
+        <input type="file" name="images" accept="image/*" webkitdirectory directory multiple><br><br>
+        <label>촬영일(선택): <input type="date" name="date_taken"></label><br>
+        <label>장소(선택): <input type="text" name="location" placeholder="예: 서울, 남산"></label><br>
+        <label>태그(쉼표로 구분): <input type="text" name="tags" placeholder="예: 여행,가족,풍경"></label><br>
         <button type="submit">폴더 업로드</button>
     </form>
 </body>
