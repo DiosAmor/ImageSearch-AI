@@ -66,6 +66,16 @@ def get_text_embedding(text: str) -> list[float] or None:
     )
 
 
+EXIF_IGNORE_TAGS = {
+    "MakerNote",
+    "UserComment",
+    "PrintImageMatching",
+    "FileSource",
+    "SceneType",
+    "ComponentsConfiguration",
+}
+
+
 def extract_exif_metadata_for_db(image_path):
     """
     EXIF에서 GPSInfo(위치), DateTimeOriginal(촬영일시), ImageUniqueID는 분리, 나머지는 dict로 묶어 반환
@@ -115,6 +125,11 @@ def extract_exif_metadata_for_db(image_path):
                         date_taken = value
                     elif tag_name == "ImageUniqueID":
                         image_unique_id = value
+                    elif tag_name in EXIF_IGNORE_TAGS:
+                        continue
+                    elif isinstance(tag_name, int):
+                        # 이름 없는(비표준) 태그는 무시
+                        continue
                     else:
                         exif_dict[tag_name] = exif_to_serializable(value)
     except Exception as e:
@@ -129,6 +144,8 @@ def exif_to_serializable(obj):
     if isinstance(obj, dict):
         return {k: exif_to_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, list):
+        return [exif_to_serializable(v) for v in obj]
+    elif isinstance(obj, tuple):
         return [exif_to_serializable(v) for v in obj]
     elif hasattr(obj, "numerator") and hasattr(obj, "denominator"):
         # IFDRational 등
@@ -147,7 +164,7 @@ def exif_to_serializable(obj):
 
 if __name__ == "__main__":
     media = "D:/GitHub/ImageSearch-AI/images"
-    image_path = media + "/KakaoTalk_20230219_205438231.jpg"
+    image_path = media + "/DV_00046.jpg"
     print(image_path)
 
     # EXIF 메타데이터 추출 예시
