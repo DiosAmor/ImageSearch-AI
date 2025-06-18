@@ -141,3 +141,6 @@ MEDIA_URL = "/media/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# 업로드 파일 개수 제한 (기본값: 1000)
+DATA_UPLOAD_MAX_NUMBER_FILES = 10000  # 필요에 따라 값 조정
