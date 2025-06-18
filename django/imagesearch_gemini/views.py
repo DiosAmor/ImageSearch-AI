@@ -1,6 +1,6 @@
 from django.shortcuts import render
-from .models import ImageEmbedding
-from .utils import get_image_embedding, extract_exif_metadata_for_db
+from .models import ImageEmbedding, SearchQuery
+from .utils import get_image_embedding, get_text_embedding, extract_exif_metadata_for_db
 from django.core.files.storage import default_storage
 from django.contrib.gis.geos import Point
 from django.utils.dateparse import parse_datetime
@@ -10,6 +10,8 @@ from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
 import os
+import re
+from geopy.geocoders import Nominatim
 
 
 def is_allowed_image_file(filename):
@@ -34,16 +36,30 @@ def process_single_image(image, date_taken_user, user_location, tag_list):
         gps_point, date_taken_exif, image_unique_id, exif_json = (
             extract_exif_metadata_for_db(tmp_path)
         )
+        # city_from_gps 추출 (geopy)
+        city_from_gps = None
+        if gps_point:
+            try:
+                geolocator = Nominatim(user_agent="imagesearch")
+                location = geolocator.reverse(
+                    (gps_point[1], gps_point[0]), language="ko"
+                )
+                if location and location.raw.get("address"):
+                    city_from_gps = (
+                        location.raw["address"].get("city")
+                        or location.raw["address"].get("town")
+                        or location.raw["address"].get("village")
+                        or location.raw["address"].get("state")
+                    )
+            except Exception:
+                city_from_gps = None
         # image_unique_id 중복 체크
         if (
             image_unique_id
             and ImageEmbedding.objects.filter(image_unique_id=image_unique_id).exists()
         ):
             return None  # 이미 존재하면 임베딩도 하지 않음
-        # embedding = get_image_embedding(tmp_path)
-        embedding = [
-            0.0
-        ] * 1408  # 임시로 1408차원 벡터 생성 (실제 임베딩 함수 호출 필요)
+        embedding_model, embedding = get_image_embedding(tmp_path)
         point = Point(gps_point[0], gps_point[1]) if gps_point else None
         date_taken_exif_parsed = None
         if date_taken_exif:
@@ -73,7 +89,9 @@ def process_single_image(image, date_taken_user, user_location, tag_list):
         obj = ImageEmbedding.objects.create(
             image_path=saved_path,  # 변경: 경로만 저장
             embedding=embedding,
+            embedding_model=embedding_model,
             gps=point,
+            city_from_gps=city_from_gps,
             date_taken_exif=date_taken_exif_parsed,
             date_taken_user=date_taken_user,
             location_user=user_location,
@@ -151,5 +169,59 @@ def image_upload(request):
 
 
 def image_search(request):
-    # 추후 구현 예정 (검색 폼 및 결과)
-    return render(request, "imagesearch_gemini/image_search.html")
+    results = None
+    message = None
+    if request.method == "GET":
+        query_text = request.GET.get("query_text")
+        tags = request.GET.get("tags")
+        location = request.GET.get("location")
+        date_from = request.GET.get("date_from")
+        date_to = request.GET.get("date_to")
+        qs = ImageEmbedding.objects.all()
+        # 태그 검색
+        if tags:
+            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+            for tag in tag_list:
+                qs = qs.filter(tags__name__icontains=tag)
+        # 장소 검색
+        if location:
+            qs = qs.filter(location_user__icontains=location)
+        # 날짜 검색
+        if date_from:
+            qs = qs.filter(date_taken_exif__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(date_taken_exif__date__lte=date_to)
+        # 텍스트 임베딩 기반 유사도 검색 (영어만 허용)
+        if query_text:
+            if not re.fullmatch(r"[A-Za-z0-9 ,]+", query_text):
+                message = (
+                    "검색어는 영어 단어(알파벳, 숫자, 공백, 쉼표)만 입력 가능합니다."
+                )
+                results = []
+            else:
+                # 검색어 임베딩 벡터 캐싱/저장
+                sq = SearchQuery.objects.filter(query_text=query_text).first()
+                if sq is not None and sq.query_embedding is not None:
+                    query_vec = sq.query_embedding
+                else:
+                    embedding_model, query_vec = get_text_embedding(query_text)
+                    sq = SearchQuery.objects.create(
+                        query_text=query_text,
+                        query_embedding=query_vec,
+                        query_embedding_model=embedding_model,
+                    )
+                if query_vec is not None:
+                    vec_str = "[" + ",".join(str(float(x)) for x in query_vec) + "]"
+                    qs = qs.extra(
+                        select={"l2": f"embedding <-> '{vec_str}'::vector"},
+                        order_by=["l2"],
+                    )[:20]
+        else:
+            qs = qs[:50]  # 기본 최대 50개 제한
+        if results is None:
+            results = qs
+    return render(
+        request,
+        "imagesearch_gemini/image_search.html",
+        {"results": results, "message": message, "query_text": query_text},
+    )

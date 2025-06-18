@@ -12,8 +12,14 @@ from django.dispatch import receiver
 class ImageEmbedding(models.Model):
     image_path = models.CharField(max_length=1024)  # 이미지 경로(로컬, URL 등)
     embedding = VectorField(dimensions=1408)  # 1408차원 벡터
+    embedding_model = models.CharField(
+        max_length=128, null=True, blank=True
+    )  # 임베딩 모델명
 
     gps = PointField(null=True, blank=True)  # PostGIS Point (경도, 위도)
+    city_from_gps = models.CharField(
+        max_length=128, null=True, blank=True
+    )  # GPS로 추출한 도시명
     date_taken_exif = models.DateTimeField(
         null=True, blank=True
     )  # EXIF에서 추출한 촬영일시
@@ -33,6 +39,11 @@ class ImageEmbedding(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)  # 수정일시
 
+    @property
+    def date_taken(self):
+        """사용자 입력 촬영일이 있으면 우선, 없으면 EXIF 촬영일 반환"""
+        return self.date_taken_user or self.date_taken_exif
+
 
 @receiver(post_delete, sender=ImageEmbedding)
 def delete_image_file(sender, instance, **kwargs):
@@ -49,3 +60,17 @@ def delete_image_file(sender, instance, **kwargs):
                 os.remove(file_path)
             except Exception:
                 pass
+
+
+class SearchQuery(models.Model):
+    query_text = models.CharField(max_length=255)
+    query_embedding = VectorField(
+        dimensions=1408, null=True, blank=True
+    )  # 검색어 임베딩 벡터
+    query_embedding_model = models.CharField(
+        max_length=128, null=True, blank=True
+    )  # 임베딩 모델명
+    searched_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.query_text} ({self.searched_at:%Y-%m-%d %H:%M:%S})"

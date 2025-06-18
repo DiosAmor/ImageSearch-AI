@@ -17,7 +17,7 @@
 - **웹 프레임워크:** Django
 - **데이터베이스:** PostgreSQL 17 + pgvector + PostGIS 확장
   - 벡터 데이터와 메타데이터(지리데이터,...)를 함께 저장
-  - IVFFlat 인덱스를 사용해 벡터 검색 최적화
+  - IVFFlat 인덱스를 사용해 벡터 검색 최적화 (인덱스는 직접 생성)
 - **컨테이너:** Docker로 Django와 PostgreSQL 컨테이너화
 
 ### 주요 기술
