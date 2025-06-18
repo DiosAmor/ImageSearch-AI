@@ -15,8 +15,8 @@
 - **필수 라이브러리:** `requirements.txt` 참고
   - 주요 라이브러리: django, psycopg2-binary, google-genai, google-cloud-aiplatform, python-dotenv, pytz, gunicorn, whitenoise
 - **웹 프레임워크:** Django
-- **데이터베이스:** PostgreSQL 17 + pgvector 확장
-  - 벡터 데이터와 메타데이터를 함께 저장
+- **데이터베이스:** PostgreSQL 17 + pgvector + PostGIS 확장
+  - 벡터 데이터와 메타데이터(지리데이터,...)를 함께 저장
   - IVFFlat 인덱스를 사용해 벡터 검색 최적화
 - **컨테이너:** Docker로 Django와 PostgreSQL 컨테이너화
 
@@ -41,6 +41,7 @@
    - PostgreSQL 17 버전을 사용하며, docker-compose.yaml로 컨테이너 실행
    - .env 파일을 이용해 데이터베이스 환경 변수(계정, 비밀번호, 포트 등) 관리
    - pgvector 확장 설치 및 설정
+   - PostGIS 확장 설치 및 설정
    - 이미지, 메타데이터, 벡터 정보를 저장할 테이블 설계
 
 3. 이미지 업로드 및 메타데이터 입력 기능 구현
