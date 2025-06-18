@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>구글 드라이브 로그인 테스트</title>
+</head>
+<body>
+    <h1>구글 드라이브 로그인 테스트</h1>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit">구글 드라이브 로그인</button>
+    </form>
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+</body>
+</html>

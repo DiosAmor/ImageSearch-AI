@@ -12,6 +12,9 @@ import pytz
 import os
 import re
 from geopy.geocoders import Nominatim
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+from .google_drive_auth import get_drive_service
 
 
 def is_allowed_image_file(filename):
@@ -224,4 +227,21 @@ def image_search(request):
         request,
         "imagesearch_gemini/image_search.html",
         {"results": results, "message": message, "query_text": query_text},
+    )
+
+
+@csrf_exempt
+def google_drive_login(request):
+    message = None
+    if request.method == "POST":
+        try:
+            service = get_drive_service()
+            # 로그인 성공 시 사용자 이메일 등 정보 확인
+            about = service.about().get(fields="user").execute()
+            user_email = about.get("user", {}).get("emailAddress", "(이메일 정보 없음)")
+            message = f"구글 드라이브 인증 성공! 이메일: {user_email}"
+        except Exception as e:
+            message = f"구글 드라이브 인증 실패: {e}"
+    return render(
+        request, "imagesearch_gemini/google_drive_login.html", {"message": message}
     )

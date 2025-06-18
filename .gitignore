@@ -2,6 +2,8 @@
 .env
 
 *api-key.json
+*google-auth-client.json
+*token.pickle
 
 # Ignore Python cache files
 __pycache__/
