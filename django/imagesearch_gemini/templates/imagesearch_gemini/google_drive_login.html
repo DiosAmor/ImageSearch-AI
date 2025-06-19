@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>구글 드라이브 로그인 테스트</title>
-</head>
-<body>
-    <h1>구글 드라이브 로그인 테스트</h1>
-    <form method="post">
-        {% csrf_token %}
-        <button type="submit">구글 드라이브 로그인</button>
-    </form>
-    {% if message %}
-        <p>{{ message }}</p>
-    {% endif %}
-</body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="description"
+              content="구글 드라이브 로그인 테스트 페이지입니다. 구글 계정으로 인증을 진행합니다.">
+        <meta name="keywords"
+              content="구글, 드라이브, 로그인, 인증, Google Drive, login, auth">
+        <title>구글 드라이브 로그인 테스트</title>
+        <style>.message { color: green; }</style>
+    </head>
+    <body>
+        <h1>구글 드라이브 로그인 테스트</h1>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit">구글 드라이브 로그인</button>
+        </form>
+        {% if message %}<p class="message">{{ message }}</p>{% endif %}
+    </body>
 </html>

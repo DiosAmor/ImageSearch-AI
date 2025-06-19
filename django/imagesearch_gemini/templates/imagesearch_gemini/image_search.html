@@ -1,46 +1,83 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>이미지 검색</title>
-</head>
-<body>
-    <h1>이미지 검색</h1>
-    {% if message %}
-        <p style="color:red;">{{ message }}</p>
-    {% endif %}
-    <form method="get">
-        <label>텍스트(유사 이미지 검색): <input type="text" name="query_text" placeholder="예: sea, cat, mountain"></label><br>
-        <label>태그: <input type="text" name="tags" placeholder="쉼표로 구분"></label><br>
-        <label>장소: <input type="text" name="location" placeholder="장소명"></label><br>
-        <label>촬영일(시작): <input type="date" name="date_from"></label>
-        <label>~ (끝): <input type="date" name="date_to"></label><br>
-        <button type="submit">검색</button>
-    </form>
-    {% if results %}
-        <h2>검색 결과</h2>
-        {% if query_text %}
-            <p>검색어: <strong>{{ query_text }}</strong></p>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="description"
+              content="이미지 검색 페이지입니다. 텍스트, 태그, 장소, 날짜로 이미지를 검색할 수 있습니다.">
+        <meta name="keywords" content="이미지, 검색, 태그, 장소, 날짜, image, search">
+        <title>이미지 검색</title>
+        <style>
+        .error-message { color: red; }
+        .search-image { max-height: 100px; max-width: 150px; }
+        </style>
+    </head>
+    <body>
+        <h1>이미지 검색</h1>
+        {% if message %}<p class="error-message">{{ message }}</p>{% endif %}
+        <form method="get">
+            <label for="query_text">텍스트(유사 이미지 검색):</label>
+            <input id="query_text"
+                   type="text"
+                   name="query_text"
+                   placeholder="예: sea, cat, mountain">
+            <br>
+            <label for="tags">태그:</label>
+            <input id="tags" type="text" name="tags" placeholder="쉼표로 구분">
+            <br>
+            <label for="location">장소:</label>
+            <input id="location" type="text" name="location" placeholder="장소명">
+            <br>
+            <label for="date_from">촬영일(시작):</label>
+            <input id="date_from" type="date" name="date_from">
+            <label for="date_to">~ (끝):</label>
+            <input id="date_to" type="date" name="date_to">
+            <br>
+            <button type="submit">검색</button>
+        </form>
+        {% if results %}
+            <h2>검색 결과</h2>
+            {% if query_text %}
+                <p>
+                    검색어: <strong>{{ query_text }}</strong>
+                </p>
+            {% endif %}
+            <ul>
+                {% for obj in results %}
+                    <li>
+                        {% if obj.image_path|slice:':7' == 'http://' or obj.image_path|slice:':8' == 'https://' %}
+                            <img src="{{ obj.image_path }}"
+                                 class="search-image"
+                                 alt="검색 이미지"
+                                 width="150"
+                                 height="100" />
+                        {% else %}
+                            <img src="{{ MEDIA_URL }}{{ obj.image_path }}"
+                                 class="search-image"
+                                 alt="검색 이미지"
+                                 width="150"
+                                 height="100" />
+                        {% endif %}
+                        {% if obj.date_taken %}
+                            <br>
+                            촬영일: {{ obj.date_taken }}
+                        {% endif %}
+                        {% if obj.city_from_gps %}
+                            <br>
+                            위치: {{ obj.city_from_gps }}
+                        {% endif %}
+                        {% if obj.location_user %}
+                            <br>
+                            장소: {{ obj.location_user }}
+                        {% endif %}
+                        {% if obj.tags.all %}
+                            {% with tag_list=obj.tags.all|join:', ' %}
+                                <br>
+                                태그: {{ tag_list }}
+                            {% endwith %}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
         {% endif %}
-        <ul>
-        {% for obj in results %}
-            <li>
-                {% if obj.image_path|slice:':7' == 'http://' or obj.image_path|slice:':8' == 'https://' %}
-                    <img src="{{ obj.image_path }}" style="max-height:100px; max-width:150px;" />
-                {% else %}
-                    <img src="{{ MEDIA_URL }}{{ obj.image_path }}" style="max-height:100px; max-width:150px;" />
-                {% endif %}
-                {% if obj.date_taken %}<br>촬영일: {{ obj.date_taken }}{% endif %}
-                {% if obj.city_from_gps %}<br>위치: {{ obj.city_from_gps }}{% endif %}
-                {% if obj.location_user %}<br>장소: {{ obj.location_user }}{% endif %}
-                {% if obj.tags.all %}
-                    {% with tag_list=obj.tags.all|join:', ' %}
-                        <br>태그: {{ tag_list }}
-                    {% endwith %}
-                {% endif %}
-            </li>
-        {% endfor %}
-        </ul>
-    {% endif %}
-</body>
+    </body>
 </html>

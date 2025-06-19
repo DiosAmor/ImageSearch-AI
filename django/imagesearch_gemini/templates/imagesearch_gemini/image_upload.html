@@ -1,40 +1,79 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>이미지 업로드</title>
-    <script>
-        function toggleUploadType(type) {
-            document.getElementById('single-upload').style.display = (type === 'single') ? 'block' : 'none';
-            document.getElementById('folder-upload').style.display = (type === 'folder') ? 'block' : 'none';
-        }
-    </script>
-</head>
-<body>
-    <h1>이미지 업로드</h1>
-    {% if message %}
-        <p style="color:green;">{{ message }}</p>
-    {% endif %}
-    <button onclick="toggleUploadType('single')">이미지 한 장 업로드</button>
-    <button onclick="toggleUploadType('folder')">폴더 업로드</button>
-    <br><br>
-    <form id="single-upload" method="post" enctype="multipart/form-data" style="display:block;">
-        {% csrf_token %}
-        <input type="hidden" name="upload_type" value="single">
-        <input type="file" name="image" accept="image/*"><br><br>
-        <label>촬영일(선택): <input type="date" name="date_taken"></label><br>
-        <label>장소(선택): <input type="text" name="location" placeholder="예: 서울, 남산"></label><br>
-        <label>태그(쉼표로 구분): <input type="text" name="tags" placeholder="예: 여행,가족,풍경"></label><br>
-        <button type="submit">한 장 업로드</button>
-    </form>
-    <form id="folder-upload" method="post" enctype="multipart/form-data" style="display:none;">
-        {% csrf_token %}
-        <input type="hidden" name="upload_type" value="folder">
-        <input type="file" name="images" accept="image/*" webkitdirectory directory multiple><br><br>
-        <label>촬영일(선택): <input type="date" name="date_taken"></label><br>
-        <label>장소(선택): <input type="text" name="location" placeholder="예: 서울, 남산"></label><br>
-        <label>태그(쉼표로 구분): <input type="text" name="tags" placeholder="예: 여행,가족,풍경"></label><br>
-        <button type="submit">폴더 업로드</button>
-    </form>
-</body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="description"
+              content="이미지 업로드 페이지입니다. 사진을 한 장 또는 폴더 단위로 업로드할 수 있습니다.">
+        <meta name="keywords" content="이미지, 사진, 업로드, 폴더, single, folder, upload">
+        <title>이미지 업로드</title>
+        <style>
+        #single-upload { display: block; }
+        #folder-upload { display: none; }
+        .success-message { color: green; }
+        </style>
+        <script>
+    function toggleUploadType(type) {
+        document.getElementById('single-upload').style.display = (type === 'single') ? 'block' : 'none';
+        document.getElementById('folder-upload').style.display = (type === 'folder') ? 'block' : 'none';
+    }
+        </script>
+    </head>
+    <body>
+        <h1>이미지 업로드</h1>
+        {% if message %}<p class="success-message">{{ message }}</p>{% endif %}
+        <button type="button" onclick="toggleUploadType('single')">이미지 한 장 업로드</button>
+        <button type="button" onclick="toggleUploadType('folder')">폴더 업로드</button>
+        <br>
+        <br>
+        <form id="single-upload" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="upload_type" value="single">
+            <label for="single-image">이미지 선택:</label>
+            <input id="single-image" type="file" name="image" accept="image/*" required>
+            <br>
+            <br>
+            <label for="single-date_taken">촬영일(선택):</label>
+            <input id="single-date_taken" type="date" name="date_taken">
+            <br>
+            <label for="single-location">장소(선택):</label>
+            <input id="single-location"
+                   type="text"
+                   name="location"
+                   placeholder="예: 서울, 남산">
+            <br>
+            <label for="single-tags">태그(쉼표로 구분):</label>
+            <input id="single-tags" type="text" name="tags" placeholder="예: 여행,가족,풍경">
+            <br>
+            <br>
+            <button type="submit">한 장 업로드</button>
+        </form>
+        <form id="folder-upload" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="upload_type" value="folder">
+            <label for="folder-images">폴더 선택:</label>
+            <input id="folder-images"
+                   type="file"
+                   name="images"
+                   accept="image/*"
+                   webkitdirectory
+                   directory
+                   multiple>
+            <br>
+            <br>
+            <label for="folder-date_taken">촬영일(선택):</label>
+            <input id="folder-date_taken" type="date" name="date_taken">
+            <br>
+            <label for="folder-location">장소(선택):</label>
+            <input id="folder-location"
+                   type="text"
+                   name="location"
+                   placeholder="예: 서울, 남산">
+            <br>
+            <label for="folder-tags">태그(쉼표로 구분):</label>
+            <input id="folder-tags" type="text" name="tags" placeholder="예: 여행,가족,풍경">
+            <br>
+            <br>
+            <button type="submit">폴더 업로드</button>
+        </form>
+    </body>
 </html>
