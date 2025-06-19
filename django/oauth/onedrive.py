@@ -3,7 +3,8 @@ import json
 import jwt
 from msal import ConfidentialClientApplication
 from django.conf import settings
-from .utils import save_token
+from .utils import save_token, get_token
+import requests
 
 CONFIG_FILE = os.path.join(
     settings.BASE_DIR, "oauth/credentials/onedrive-auth-client.json"
@@ -19,10 +20,11 @@ REDIRECT_URI = config.get(
     "redirect_uri", "http://localhost:8000/oauth/onedrive-redirect/"
 )
 
+# tenant는 onedrive 못 보게 함. 수정할 것.
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 
 
-def build_auth_url():
+def build_onedrive_auth_url():
     app = ConfidentialClientApplication(
         CLIENT_ID, client_credential=CLIENT_SECRET, authority=AUTHORITY
     )
@@ -32,7 +34,7 @@ def build_auth_url():
     return auth_url
 
 
-def get_token_from_code(auth_code):
+def get_onedrive_token_from_code(auth_code):
     app = ConfidentialClientApplication(
         CLIENT_ID, client_credential=CLIENT_SECRET, authority=AUTHORITY
     )
@@ -59,3 +61,28 @@ def get_token_from_code(auth_code):
             },
         )
     return result
+
+
+def list_images_in_onedrive(user_email, top=20):
+    """
+    인증된 사용자의 OneDrive에서 이미지 파일 목록을 가져온다.
+    인증이 안 되어 있으면 인증 URL을 반환하는 Exception을 발생시킨다.
+    반환: [{'id': ..., 'name': ..., 'webUrl': ...}, ...]
+    """
+    access_token = get_token(user_email, "onedrive")
+    if not access_token:
+        auth_url = build_onedrive_auth_url()
+        # 올바른 OneDrive 인증 URL을 안내
+        raise Exception(
+            f"OneDrive 인증이 필요합니다. <a href='{auth_url}' target='_blank'>OneDrive 인증하기</a>"
+        )
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+    url = f"https://graph.microsoft.com/v1.0/me/drive/root/children?$top={top}&$filter=startswith(file/mimeType,'image/')"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        items = response.json().get("value", [])
+        return items
+    else:
+        raise Exception(f"OneDrive 목록 조회 실패: {response.text}")

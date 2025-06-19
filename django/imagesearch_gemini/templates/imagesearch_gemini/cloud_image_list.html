@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="클라우드 이미지 목록을 확인하고 인증이 필요한 경우 안내를 받습니다.">
+    <meta name="keywords" content="클라우드, 이미지, 구글 드라이브, 원드라이브, 인증">
+    <title>클라우드 이미지 목록</title>
+    <style>
+      .message {
+        color: red;
+        margin: 1em 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>클라우드 이미지 목록</h1>
+    <form method="post">
+      {% csrf_token %}
+      <label for="cloud">클라우드 선택:</label>
+      <select name="cloud" id="cloud">
+        <option value="google" {% if cloud == 'google' %}selected{% endif %}>Google Drive</option>
+        <option value="onedrive" {% if cloud == 'onedrive' %}selected{% endif %}>OneDrive</option>
+      </select>
+      <input
+        type="text"
+        name="cloud_email"
+        placeholder="클라우드 계정 이메일"
+        value="{{ cloud_email }}"
+      />
+      <button type="submit">목록 불러오기</button>
+    </form>
+    {% if message %}
+    <div class="message">{{ message|safe }}</div>
+    {% endif %}
+    {% if images %}
+    <h2>이미지 목록 ({{ cloud }})</h2>
+    <ul>
+      {% for img in images %}
+      <li>
+        {% if cloud == 'google' %}
+        <a href="{{ img.webViewLink }}" target="_blank">{{ img.name }}</a>
+        {% elif cloud == 'onedrive' %}
+        <a href="{{ img.webUrl }}" target="_blank">{{ img.name }}</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </body>
+</html>

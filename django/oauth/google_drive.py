@@ -2,11 +2,14 @@ import os
 import json
 import jwt
 import time
+import requests
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.conf import settings
-from .utils import save_token
+from .utils import save_token, get_token
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 
 CONFIG_FILE = os.path.join(
     settings.BASE_DIR, "oauth/credentials/googledrive-auth-client.json"
@@ -108,3 +111,30 @@ def get_google_token_from_code(code):
             },
         )
     return creds
+
+
+def list_images_in_google_drive(user_email, page_size=20):
+    """
+    인증된 사용자의 Google Drive에서 이미지 파일 목록을 가져온다.
+    인증이 안 되어 있으면 인증 URL을 반환하는 Exception을 발생시킨다.
+    반환: [{'id': ..., 'name': ..., 'webViewLink': ...}, ...]
+    """
+    access_token = get_token(user_email, "google")
+    if not access_token:
+        auth_url = build_google_auth_url()
+        raise Exception(
+            f"Google Drive 인증이 필요합니다. <a href='{auth_url}' target='_blank'>Google Drive 인증하기</a>"
+        )
+    creds = Credentials(token=access_token)
+    service = build("drive", "v3", credentials=creds)
+    results = (
+        service.files()
+        .list(
+            pageSize=page_size,
+            fields="files(id, name, mimeType, webViewLink)",
+            q="mimeType contains 'image/' and trashed = false",
+        )
+        .execute()
+    )
+    files = results.get("files", [])
+    return files

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from oauth.google_drive import build_google_auth_url, get_google_token_from_code
-from oauth.onedrive import build_auth_url, get_token_from_code
+from oauth.onedrive import build_onedrive_auth_url, get_onedrive_token_from_code
 
 
 @csrf_exempt
@@ -12,7 +12,7 @@ def cloud_drive_login(request):
         if service == "google":
             return redirect(build_google_auth_url())
         elif service == "onedrive":
-            return redirect(build_auth_url())
+            return redirect(build_onedrive_auth_url())
         else:
             message = "알 수 없는 서비스 요청입니다."
     return render(
@@ -44,7 +44,7 @@ def onedrive_redirect(request):
     code = request.GET.get("code")
     message = None
     if code:
-        result = get_token_from_code(code)
+        result = get_onedrive_token_from_code(code)
         if "access_token" in result:
             message = "원드라이브 인증 성공!"
         else:

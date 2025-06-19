@@ -12,6 +12,9 @@ import pytz
 import os
 import re
 from geopy.geocoders import Nominatim
+from oauth.google_drive import list_images_in_google_drive
+from oauth.onedrive import list_images_in_onedrive
+from oauth.utils import get_token
 
 
 def is_allowed_image_file(filename):
@@ -113,21 +116,18 @@ def image_upload(request):
     context = {}
     if request.method == "POST":
         upload_type = request.POST.get("upload_type", "single")
-        # 사용자 입력값
         user_date_taken = request.POST.get("date_taken")
         user_location = request.POST.get("location")
         user_tags = request.POST.get("tags")
         tag_list = (
             [t.strip() for t in user_tags.split(",") if t.strip()] if user_tags else []
         )
-        # date_taken_user는 DateField이므로 YYYY-MM-DD로 변환
         date_taken_user = None
         if user_date_taken:
             try:
                 date_taken_user = datetime.strptime(user_date_taken, "%Y-%m-%d").date()
             except Exception:
                 date_taken_user = None
-
         if upload_type == "single":
             image = request.FILES.get("image")
             if image:
@@ -225,3 +225,28 @@ def image_search(request):
         "imagesearch_gemini/image_search.html",
         {"results": results, "message": message, "query_text": query_text},
     )
+
+
+def cloud_image_list(request):
+    """
+    클라우드 드라이브(Google/OneDrive)에서 이미지 목록을 가져와서 사용자에게 보여주는 뷰
+    인증이 필요하면 인증 URL을 안내한다.
+    """
+    context = {}
+    if request.method == "POST":
+        cloud = request.POST.get("cloud")  # 'google' or 'onedrive'
+        user_email = request.POST.get("cloud_email")
+        try:
+            if cloud == "google":
+                images = list_images_in_google_drive(user_email)
+                context["images"] = images
+            elif cloud == "onedrive":
+                images = list_images_in_onedrive(user_email)
+                context["images"] = images
+            else:
+                context["message"] = "클라우드 종류를 선택하세요."
+        except Exception as e:
+            context["message"] = str(e)
+        context["cloud"] = cloud  # 항상 사용자가 선택한 값을 context에 넣어줌
+        context["cloud_email"] = user_email
+    return render(request, "imagesearch_gemini/cloud_image_list.html", context)
