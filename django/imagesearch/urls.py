@@ -24,6 +24,9 @@ from django.conf.urls.static import static
 urlpatterns = [
     path("", lambda request: redirect("/image/")),
     path("admin/", admin.site.urls),
+    path(
+        "oauth/", include(("oauth.urls", "oauth"), namespace="oauth")
+    ),  # oauth 앱의 URL을 네임스페이스로 포함
     path("image/", include("imagesearch_gemini.urls")),
 ]
 

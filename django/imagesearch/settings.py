@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.gis",  # PostGIS 지원
     "imagesearch_gemini",
+    "oauth",  # OAuth 인증 기능
     "taggit",  # 태그 기능
 ]
 

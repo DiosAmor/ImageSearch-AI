@@ -2,7 +2,7 @@
 .env
 
 *api-key.json
-*google-auth-client.json
+*auth-client.json
 *token.pickle
 
 # Ignore Python cache files
