@@ -216,3 +216,10 @@ def cloud_image_list(request):
         }
     )
     return render(request, "imagesearch_gemini/cloud_image_list.html", context)
+
+
+def embedding_status_list(request):
+    images = ImageEmbedding.objects.all().order_by("-id")[:100]
+    return render(
+        request, "imagesearch_gemini/embedding_status_list.html", {"images": images}
+    )

@@ -44,7 +44,10 @@ INSTALLED_APPS = [
     "django.contrib.gis",  # PostGIS 지원
     "imagesearch_gemini",
     "oauth",  # OAuth 인증 기능
-    "taggit",  # 태그 기능
+    "taggit",  # 태그 기능.
+    "celery",
+    "django_celery_results",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -147,3 +150,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # 업로드 파일 개수 제한 (기본값: 1000)
 DATA_UPLOAD_MAX_NUMBER_FILES = 10000  # 필요에 따라 값 조정
+
+# Celery 설정
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="description"
+              content="임베딩 상태를 모니터링하는 페이지입니다. 각 이미지의 임베딩 상태와 에러 정보를 확인할 수 있습니다.">
+        <meta name="keywords"
+              content="임베딩, 상태, 모니터링, 이미지, 에러, embedding, status, monitoring, image, error">
+        <title>임베딩 상태 모니터링</title>
+        <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background: #f5f5f5; }
+        .error { color: red; }
+        </style>
+    </head>
+    <body>
+        <h2>임베딩 상태 모니터링</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>이미지</th>
+                    <th>상태</th>
+                    <th>에러</th>
+                    <th>생성일</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for img in images %}
+                    <tr>
+                        <td>{{ img.id }}</td>
+                        <td>
+                            {% if img.image_path %}
+                                {% if img.image_path|slice:':7' == 'http://' or img.image_path|slice:':8' == 'https://' %}
+                                    <img src="{{ img.image_path }}" width="80" height="80" alt="cloud image" />
+                                {% else %}
+                                    <img src="{{ MEDIA_URL }}{{ img.image_path }}"
+                                         width="80"
+                                         height="80"
+                                         alt="local image" />
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>{{ img.get_embedding_status_display }}</td>
+                        <td>
+                            {% if img.embedding_error %}<span class="error">{{ img.embedding_error }}</span>{% endif %}
+                        </td>
+                        <td>{{ img.created_at|default:img.id }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </body>
+</html>

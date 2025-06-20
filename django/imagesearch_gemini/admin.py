@@ -41,6 +41,7 @@ class ImageEmbeddingAdmin(admin.ModelAdmin):
         "city_from_gps",
         "location_user",
         "tag_list",
+        "embedding_status",
         "updated_at",
     )
     search_fields = ("image_path", "image_unique_id", "location_user")

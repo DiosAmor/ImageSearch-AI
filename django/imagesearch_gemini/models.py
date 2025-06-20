@@ -38,6 +38,18 @@ class ImageEmbedding(models.Model):
     )  # 사용자가 입력한 장소
     tags = TaggableManager(blank=True)  # django-taggit 태그 필드
 
+    # 임베딩 상태 관리
+    EMBEDDING_STATUS_CHOICES = [
+        ("pending", "대기"),
+        ("processing", "처리 중"),
+        ("done", "완료"),
+        ("failed", "실패"),
+    ]
+    embedding_status = models.CharField(
+        max_length=16, choices=EMBEDDING_STATUS_CHOICES, default="pending"
+    )
+    embedding_error = models.TextField(null=True, blank=True)  # 실패 시 에러 메시지
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)  # 수정일시
 
@@ -45,6 +57,14 @@ class ImageEmbedding(models.Model):
     def date_taken(self):
         """사용자 입력 촬영일이 있으면 우선, 없으면 EXIF 촬영일 반환"""
         return self.date_taken_user or self.date_taken_exif
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new:
+            from .tasks import generate_image_embedding
+
+            generate_image_embedding.delay(self.id)
 
 
 @receiver(post_delete, sender=ImageEmbedding)
