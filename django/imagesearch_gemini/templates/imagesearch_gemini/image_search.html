@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko">
     <head>
-        <meta charset="UTF-8">
+        <meta charset="UTF-8" />
         <meta name="description"
-              content="이미지 검색 페이지입니다. 텍스트, 태그, 장소, 날짜로 이미지를 검색할 수 있습니다.">
-        <meta name="keywords" content="이미지, 검색, 태그, 장소, 날짜, image, search">
+              content="이미지 검색 페이지입니다. 텍스트, 태그, 장소, 날짜로 이미지를 검색할 수 있습니다." />
+        <meta name="keywords" content="이미지, 검색, 태그, 장소, 날짜, image, search" />
         <title>이미지 검색</title>
-        <style>
-        .error-message { color: red; }
-        .search-image { max-height: 100px; max-width: 150px; }
-        </style>
+        {% load static %}
+        <link rel="stylesheet"
+              href="{% static 'imagesearch_gemini/css/styles.css' %}" />
     </head>
     <body>
         <h1>이미지 검색</h1>
@@ -19,19 +18,19 @@
             <input id="query_text"
                    type="text"
                    name="query_text"
-                   placeholder="예: sea, cat, mountain">
-            <br>
+                   placeholder="예: sea, cat, mountain" />
+            <br />
             <label for="tags">태그:</label>
-            <input id="tags" type="text" name="tags" placeholder="쉼표로 구분">
-            <br>
+            <input id="tags" type="text" name="tags" placeholder="쉼표로 구분" />
+            <br />
             <label for="location">장소:</label>
-            <input id="location" type="text" name="location" placeholder="장소명">
-            <br>
+            <input id="location" type="text" name="location" placeholder="장소명" />
+            <br />
             <label for="date_from">촬영일(시작):</label>
-            <input id="date_from" type="date" name="date_from">
+            <input id="date_from" type="date" name="date_from" />
             <label for="date_to">~ (끝):</label>
-            <input id="date_to" type="date" name="date_to">
-            <br>
+            <input id="date_to" type="date" name="date_to" />
+            <br />
             <button type="submit">검색</button>
         </form>
         {% if results %}
@@ -58,20 +57,20 @@
                                  height="100" />
                         {% endif %}
                         {% if obj.date_taken %}
-                            <br>
+                            <br />
                             촬영일: {{ obj.date_taken }}
                         {% endif %}
                         {% if obj.city_from_gps %}
-                            <br>
+                            <br />
                             위치: {{ obj.city_from_gps }}
                         {% endif %}
                         {% if obj.location_user %}
-                            <br>
+                            <br />
                             장소: {{ obj.location_user }}
                         {% endif %}
                         {% if obj.tags.all %}
                             {% with tag_list=obj.tags.all|join:', ' %}
-                                <br>
+                                <br />
                                 태그: {{ tag_list }}
                             {% endwith %}
                         {% endif %}

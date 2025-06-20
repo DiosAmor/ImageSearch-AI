@@ -27,11 +27,7 @@ def save_token(user_email, provider, token_data):
 
 
 def get_token(user_email, provider):
-    print(f"[get_token] user_email={user_email!r}, provider={provider!r}")
-    tokens = OAuthToken.objects.all()
-    print(f"[get_token] All tokens in DB: {[str(t) for t in tokens]}")
     token = OAuthToken.objects.filter(user_email=user_email, provider=provider).first()
-    print(f"[get_token] Query result: {token}")
     if token:
         if token.expires_at and token.expires_at > timezone.now():
             return token.access_token

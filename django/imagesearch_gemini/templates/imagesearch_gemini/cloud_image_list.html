@@ -2,58 +2,101 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content="클라우드 이미지 목록을 확인하고 인증이 필요한 경우 안내를 받습니다.">
-    <meta name="keywords" content="클라우드, 이미지, 구글 드라이브, 원드라이브, 인증">
-    <title>클라우드 이미지 목록</title>
-    <style>
-      .message {
-        color: red;
-        margin: 1em 0;
-      }
-    </style>
+    <meta name="description" content="클라우드 이미지 목록을 확인하고 인증이 필요한 경우 안내를 받습니다." />
+    <meta name="keywords" content="클라우드, 이미지, 구글 드라이브, 원드라이브, 인증" />
+    <title>클라우드 이미지 선택</title>
+    {% load static %}
+    <link rel="stylesheet"
+          href="{% static 'imagesearch_gemini/css/styles.css' %}" />
   </head>
   <body>
-    <h1>클라우드 이미지 목록</h1>
+    <h1>{{ cloud | title }} 클라우드 이미지 선택</h1>
+    <form method="get" class="cloud-connect-form">
+      <label for="cloud">클라우드 종류:</label>
+      <select name="cloud" id="cloud">
+        <option value="google" {% if cloud == "google" %}selected{% endif %}>Google Drive</option>
+        <option value="onedrive" {% if cloud == "onedrive" %}selected{% endif %}>OneDrive</option>
+      </select>
+      <label for="cloud_email">이메일:</label>
+      <input type="email"
+             name="cloud_email"
+             id="cloud_email"
+             value="{{ cloud_email|default_if_none:'' }}"
+             required>
+      <button type="submit">연결</button>
+    </form>
+    {% if message %}<div class="message">{{ message|safe }}</div>{% endif %}
+    <div class="current-path">
+      <a href="?cloud={{ cloud }}&cloud_email={{ cloud_email }}">루트</a>
+      {% if parent_id %}
+        <span class="path-separator">></span>
+        <span>{{ folder_name }}</span>
+      {% endif %}
+    </div>
     <form method="post">
       {% csrf_token %}
-      <label for="cloud">클라우드 선택:</label>
-      <select name="cloud" id="cloud">
-        <option value="google" {% if cloud == 'google' %}selected{% endif %}>Google Drive</option>
-        <option value="onedrive" {% if cloud == 'onedrive' %}selected{% endif %}>OneDrive</option>
-      </select>
-      <input
-        type="text"
-        name="cloud_email"
-        placeholder="클라우드 계정 이메일"
-        value="{{ cloud_email }}"
-      />
-      <button type="submit">목록 불러오기</button>
+      <input type="hidden" name="cloud" value="{{ cloud }}" />
+      <input type="hidden" name="cloud_email" value="{{ cloud_email }}" />
+      <input type="hidden" name="parent_id" value="{{ parent_id }}" />
+      <div class="file-explorer">
+        <div class="file-explorer-header">
+          <div class="file-name">이름</div>
+          <div class="file-date">수정된 날짜</div>
+          <div class="file-type">파일 형식</div>
+          <div class="file-size">크기</div>
+        </div>
+        <div class="file-explorer-body">
+          <!-- 폴더 목록 -->
+          {% for folder in folders %}
+            <div class="file-explorer-item folder">
+              <a href="?cloud={{ cloud }}&cloud_email={{ cloud_email }}&parent_id={{ folder.id }}{% if folder.shared %}&is_shared=1&drive_id={{ folder.drive_id }}{% endif %}"
+                 class="file-name{% if folder.shared %} shared-folder{% endif %}">
+                <span class="folder-icon">
+                  {% if folder.shared %}
+                    🔗
+                  {% else %}
+                    📁
+                  {% endif %}
+                </span> {{ folder.name }}
+              </a>
+              <div class="file-date">{{ folder.date }}</div>
+              <div class="file-type">{{ folder.type }}</div>
+              <div class="file-size"></div>
+            </div>
+          {% endfor %}
+          <!-- 이미지 목록 -->
+          {% for img in images %}
+            <div class="file-explorer-item">
+              <label class="file-explorer-row">
+                <input type="checkbox" name="selected_images" value="{{ img.id }}" />
+                <div class="file-name">
+                  <span class="file-icon">🖼️</span>
+                  <a href="{{ img.url }}" target="_blank">{{ img.name }}</a>
+                </div>
+                <div class="file-date">{{ img.date }}</div>
+                <div class="file-type">{{ img.type }}</div>
+                <div class="file-size">{{ img.size }}</div>
+              </label>
+            </div>
+          {% endfor %}
+          {% if not folders and not images %}
+            <div class="file-explorer-item">
+              <div class="file-name">이미지 파일이 없습니다.</div>
+              <div class="file-date"></div>
+              <div class="file-type"></div>
+              <div class="file-size"></div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="action-buttons">
+        {% if parent_id and parent_info.parent_id %}
+          <a href="?cloud={{ cloud }}&cloud_email={{ cloud_email }}&parent_id={{ parent_info.parent_id }}{% if parent_info.is_shared %}&is_shared=1{% endif %}{% if parent_info.drive_id %}&drive_id={{ parent_info.drive_id }}{% endif %}"
+             class="back-button button">← 상위 폴더로</a>
+        {% endif %}
+        <button type="submit">선택한 이미지 저장</button>
+      </div>
     </form>
-    {% if message %}
-    <div class="message">{{ message|safe }}</div>
-    {% endif %}
-    {% if images %}
-    <h2>이미지 목록 ({{ cloud }})</h2>
-    <form method="post" action="" id="select-images-form">
-      {% csrf_token %}
-      <input type="hidden" name="cloud" value="{{ cloud }}">
-      <input type="hidden" name="cloud_email" value="{{ cloud_email }}">
-      <ul>
-        {% for img in images %}
-        <li>
-          <label>
-            <input type="checkbox" name="selected_images" value="{{ img.id }}">
-            {% if cloud == 'google' %}
-              <a href="{{ img.webViewLink }}" target="_blank">{{ img.name }}</a>
-            {% elif cloud == 'onedrive' %}
-              <a href="{{ img.webUrl }}" target="_blank">{{ img.name }}</a>
-            {% endif %}
-          </label>
-        </li>
-        {% endfor %}
-      </ul>
-      <button type="submit" name="action" value="embed">선택한 이미지 임베딩</button>
-    </form>
-    {% endif %}
+    {% if parent_info.error %}<div class="message">{{ parent_info.error }}</div>{% endif %}
   </body>
 </html>

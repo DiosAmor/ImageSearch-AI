@@ -1,0 +1,16 @@
+<div class="meta-form">
+  <label>촬영일(선택):</label>
+  <input type="date" name="date_taken" value="{{ date_taken|default:'' }}" />
+  <br />
+  <label>장소(선택):</label>
+  <input type="text"
+         name="location"
+         placeholder="예: 서울, 남산"
+         value="{{ location|default:'' }}" />
+  <br />
+  <label>태그(쉼표로 구분):</label>
+  <input type="text"
+         name="tags"
+         placeholder="예: 여행,가족,풍경"
+         value="{{ tags|default:'' }}" />
+</div>

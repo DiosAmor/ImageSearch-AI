@@ -1,17 +1,46 @@
 import re
+import urllib.parse
 from datetime import datetime
 
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from .models import ImageEmbedding, SearchQuery
-from .storage.google_drive import list_images_in_google_drive
-from .storage.onedrive import list_images_in_onedrive
+from .storage.google_drive import list_folders_and_images_in_google_drive
+from .storage.onedrive import list_folders_and_images_in_onedrive
 from .utils.embeddings import get_text_embedding
 from .utils.image_processing import process_single_image
 
 
 def image_upload(request):
     context = {}
+    # 클라우드 업로드 선택 시 cloud_image_list로 리다이렉트
+    if request.method == "GET":
+        select_mode = request.GET.get("select_mode")
+        cloud = request.GET.get("cloud")
+        cloud_email = request.GET.get("cloud_email")
+        folder_name = request.GET.get("folder_name")
+        image_names = request.GET.get("image_names")
+        image_urls = request.GET.get("image_urls")
+        if (
+            select_mode in ["single", "folder"]
+            and cloud in ["google", "onedrive"]
+            and cloud_email
+        ):
+            # cloud_image_list로 파라미터 전달
+            return redirect(
+                f"/cloud-image-list/?cloud={cloud}&cloud_email={cloud_email}&select_mode={select_mode}"
+            )
+        # 클라우드에서 선택된 폴더/이미지명 표시
+        context.update(
+            {
+                "folder_name": folder_name,
+                "image_names": image_names.replace(",", "<br>")
+                if image_names
+                else None,
+                "image_urls": image_urls,
+            }
+        )
+        return render(request, "imagesearch_gemini/image_upload.html", context)
     if request.method == "POST":
         upload_type = request.POST.get("upload_type", "single")
         user_date_taken = request.POST.get("date_taken")
@@ -126,34 +155,64 @@ def image_search(request):
 
 
 def cloud_image_list(request):
-    """클라우드 드라이브(Google/OneDrive)에서 이미지 목록을 가져와서 사용자에게 보여주는 뷰
-    인증이 필요하면 인증 URL을 안내한다.
-    선택한 이미지를 임베딩 요청할 수 있다.
-    """
+    """클라우드 드라이브(Google/OneDrive)에서 폴더와 이미지를 동시에 가져와 폴더, 이미지는 순서로 보여줌."""
     context = {}
-    if request.method == "POST":
-        cloud = request.POST.get("cloud")  # 'google' or 'onedrive'
-        user_email = request.POST.get("cloud_email")
-        action = request.POST.get("action")
-        selected_images = request.POST.getlist("selected_images")
+    cloud = request.GET.get("cloud") or request.POST.get("cloud")
+    cloud_email = request.GET.get("cloud_email") or request.POST.get("cloud_email")
+    parent_id = request.GET.get("parent_id") or request.POST.get("parent_id")
+    is_shared = request.GET.get("is_shared") or request.POST.get("is_shared")
+    drive_id = request.GET.get("drive_id") or request.POST.get("drive_id")
+    is_shared = str(is_shared) == "1"  # True/False
+    selected_images = request.POST.getlist("selected_images")
+    folders, images = [], []
+    folder_name = ""
+    parent_info = {"parent_id": None, "drive_id": None, "is_shared": is_shared}
+    if cloud == "google":
         try:
-            if cloud == "google":
-                images = list_images_in_google_drive(user_email)
-                context["images"] = images
-            elif cloud == "onedrive":
-                images = list_images_in_onedrive(user_email)
-                context["images"] = images
-            else:
-                context["message"] = "클라우드 종류를 선택하세요."
-            # 선택한 이미지 임베딩 요청 처리
-            if action == "embed" and selected_images:
-                # 실제 임베딩 로직은 별도 구현 필요 (예: celery task, 즉시 다운로드 후 임베딩 등)
-                context["message"] = (
-                    f"{len(selected_images)}개의 이미지를 임베딩합니다. (구현 필요)"
+            folders, images, folder_name, parent_info = (
+                list_folders_and_images_in_google_drive(
+                    cloud_email, parent_id, is_shared=is_shared, drive_id=drive_id
                 )
-                context["selected_images"] = selected_images
+            )
         except Exception as e:
             context["message"] = str(e)
-        context["cloud"] = cloud
-        context["cloud_email"] = user_email
+            parent_info = {"parent_id": None, "drive_id": None, "is_shared": is_shared}
+    elif cloud == "onedrive":
+        try:
+            folders, images, folder_name, parent_info = (
+                list_folders_and_images_in_onedrive(
+                    cloud_email, parent_id, is_shared=is_shared, drive_id=drive_id
+                )
+            )
+        except Exception as e:
+            context["message"] = str(e)
+            parent_info = {"parent_id": None, "drive_id": None, "is_shared": is_shared}
+    else:
+        parent_info = {"parent_id": None, "drive_id": None, "is_shared": is_shared}
+    # 이미지 선택 후 save 버튼 클릭 시 image_upload로 이동
+    if request.method == "POST" and selected_images:
+        img_names = [img["name"] for img in images if img["id"] in selected_images]
+        img_urls = [img["url"] for img in images if img["id"] in selected_images]
+        params = urllib.parse.urlencode(
+            {
+                "cloud": cloud,
+                "folder_name": folder_name,
+                "image_names": ",".join(img_names),
+                "image_urls": ",".join(img_urls),
+            }
+        )
+        return redirect(f"/upload/?{params}")
+    context.update(
+        {
+            "cloud": cloud,
+            "cloud_email": cloud_email,
+            "parent_id": parent_id,
+            "is_shared": int(is_shared),
+            "drive_id": drive_id,
+            "folder_name": folder_name,
+            "folders": folders,
+            "images": images,
+            "parent_info": parent_info,
+        }
+    )
     return render(request, "imagesearch_gemini/cloud_image_list.html", context)

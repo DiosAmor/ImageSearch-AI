@@ -128,6 +128,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # GDAL 라이브러리 경로 설정 (환경변수 또는 기본값)
 GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH", "C:/OSGeo4W/bin/gdal310.dll")
