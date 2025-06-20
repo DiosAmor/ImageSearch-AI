@@ -20,16 +20,16 @@ REDIRECT_URI = config.get(
     "redirect_uri", "http://localhost:8000/oauth/onedrive-redirect/"
 )
 
-# tenant는 onedrive 못 보게 함. 수정할 것.
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+AUTHORITY = "https://login.microsoftonline.com/consumers"
 
 
 def build_onedrive_auth_url():
     app = ConfidentialClientApplication(
         CLIENT_ID, client_credential=CLIENT_SECRET, authority=AUTHORITY
     )
+    # prompt=select_account을 추가하여 항상 계정 선택 화면이 뜨도록 함
     auth_url = app.get_authorization_request_url(
-        scopes=SCOPES, redirect_uri=REDIRECT_URI
+        scopes=SCOPES, redirect_uri=REDIRECT_URI, prompt="select_account"
     )
     return auth_url
 
@@ -79,7 +79,7 @@ def list_images_in_onedrive(user_email, top=20):
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
-    url = f"https://graph.microsoft.com/v1.0/me/drive/root/children?$top={top}&$filter=startswith(file/mimeType,'image/')"
+    url = f"https://graph.microsoft.com/v1.0/me/drive/root/children?$top={top}"
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         items = response.json().get("value", [])

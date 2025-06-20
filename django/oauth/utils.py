@@ -42,7 +42,17 @@ def get_token(user_email, provider):
             else:
                 return None
             if new_token_data and "access_token" in new_token_data:
-                save_token(user_email, provider, new_token_data)
+                # refresh_token이 응답에 없으면 기존 값 유지
+                new_refresh_token = new_token_data.get("refresh_token") or refresh_token
+                save_token(
+                    user_email,
+                    provider,
+                    {
+                        "access_token": new_token_data["access_token"],
+                        "refresh_token": new_refresh_token,
+                        "expires_in": new_token_data.get("expires_in"),
+                    },
+                )
                 return new_token_data["access_token"]
     return None
 
@@ -76,8 +86,7 @@ def refresh_onedrive_access_token(refresh_token):
         config = json.load(f)
     client_id = config["client_id"]
     client_secret = config["client_secret"]
-    tenant_id = config.get("tenant_id", "common")
-    token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+    token_url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
     data = {
         "client_id": client_id,
         "client_secret": client_secret,
