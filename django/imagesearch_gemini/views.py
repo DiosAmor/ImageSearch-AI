@@ -2,12 +2,12 @@ import re
 from datetime import datetime
 
 from django.shortcuts import render
-from imagesearch_gemini.image_processing import process_single_image
 
 from .models import ImageEmbedding, SearchQuery
 from .storage.google_drive import list_images_in_google_drive
 from .storage.onedrive import list_images_in_onedrive
-from .utils import get_text_embedding
+from .utils.embeddings import get_text_embedding
+from .utils.image_processing import process_single_image
 
 
 def image_upload(request):

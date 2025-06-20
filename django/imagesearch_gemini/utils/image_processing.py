@@ -3,6 +3,7 @@ import tempfile
 
 import pytz
 from geopy.geocoders import Nominatim
+from imagesearch_gemini.models import ImageEmbedding
 from PIL import Image as PilImage
 from PIL.ExifTags import GPSTAGS, TAGS
 from timezonefinder import TimezoneFinder
@@ -11,13 +12,18 @@ from django.contrib.gis.geos import Point
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from imagesearch_gemini.models import ImageEmbedding
-from imagesearch_gemini.utils import get_image_embedding
+
+from .embeddings import get_image_embedding
+
+# ...existing code...
 
 
 def is_allowed_image_file(filename):
     allowed_ext = [".jpg", ".jpeg", ".png"]
     return any(filename.lower().endswith(ext) for ext in allowed_ext)
+
+
+# ...existing code...
 
 
 def process_single_image(image, date_taken_user, user_location, tag_list):
@@ -103,6 +109,9 @@ def process_single_image(image, date_taken_user, user_location, tag_list):
                 pass
 
 
+# ...existing code...
+
+
 def exif_to_serializable(obj):
     """EXIF dict/list 내 JSON 직렬화 불가 타입(bytes, IFDRational 등)을 float/int/str/utf-8로 변환"""
     if isinstance(obj, dict):
@@ -126,6 +135,8 @@ def exif_to_serializable(obj):
         return obj
 
 
+# ...existing code...
+
 EXIF_IGNORE_TAGS = {
     "MakerNote",
     "UserComment",
@@ -134,6 +145,8 @@ EXIF_IGNORE_TAGS = {
     "SceneType",
     "ComponentsConfiguration",
 }
+
+# ...existing code...
 
 
 def extract_exif_metadata_for_db(image_path):
