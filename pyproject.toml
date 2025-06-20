@@ -1,0 +1,20 @@
+[tool.ruff]
+# 활성화할 린팅 규칙 코드들을 지정합니다. 
+# 'I'는 isort의 import 정렬 규칙을, 'F' (Pyflakes)는 불필요한 import/변수 제거를 포함합니다.
+select = ["E", "F", "I", "UP", "B", "ANN", "C4", "C90", "D", "ERA", "ISC", "N", "PL", "PT", "Q", "RET", "RSE", "RUF", "S", "TID", "YTT"]
+# Black의 기본 줄 길이인 88에 맞춥니다.
+line-length = 88 
+# 무시할 규칙들 (예: 줄 길이 검사 - Black이나 Ruff 포매터가 처리하므로, 닥스트링 관련 등)
+ignore = [
+    "E501", 
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "D200", "D201", "D205","D400","D415",
+    "ANN001","ANN201","ANN003","ANN204",
+    "N806",
+    "C901",
+]
+
+[tool.ruff.format]
+# Ruff 자체 포매터를 사용할 경우의 설정 (Black과 유사하게 맞추는 것이 좋음)
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

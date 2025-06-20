@@ -1,115 +1,13 @@
-from django.shortcuts import render
-from .models import ImageEmbedding, SearchQuery
-from .utils import get_image_embedding, get_text_embedding, extract_exif_metadata_for_db
-from django.core.files.storage import default_storage
-from django.contrib.gis.geos import Point
-from django.utils.dateparse import parse_datetime
-from django.utils import timezone
-import tempfile
-from datetime import datetime
-from timezonefinder import TimezoneFinder
-import pytz
-import os
 import re
-from geopy.geocoders import Nominatim
-from oauth.google_drive import list_images_in_google_drive
-from oauth.onedrive import list_images_in_onedrive
-from oauth.utils import get_token
+from datetime import datetime
 
+from django.shortcuts import render
+from imagesearch_gemini.image_processing import process_single_image
 
-def is_allowed_image_file(filename):
-    allowed_ext = [".jpg", ".jpeg", ".png"]
-    return any(filename.lower().endswith(ext) for ext in allowed_ext)
-
-
-def process_single_image(image, date_taken_user, user_location, tag_list):
-    if not is_allowed_image_file(image.name):
-        return "not_allowed"  # 허용되지 않은 확장자
-    tmp_path = None
-    # 업로드 파일의 확장자 추출 (예: .jpg, .png)
-    _, ext = os.path.splitext(image.name)
-    if not ext:
-        ext = ".jpg"  # 기본값
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            for chunk in image.chunks():
-                tmp.write(chunk)
-            tmp_path = tmp.name
-        # EXIF 먼저 추출 (임베딩 전에 중복 체크)
-        gps_point, date_taken_exif, image_unique_id, exif_json = (
-            extract_exif_metadata_for_db(tmp_path)
-        )
-        # city_from_gps 추출 (geopy)
-        city_from_gps = None
-        if gps_point:
-            try:
-                geolocator = Nominatim(user_agent="imagesearch")
-                location = geolocator.reverse(
-                    (gps_point[1], gps_point[0]), language="ko"
-                )
-                if location and location.raw.get("address"):
-                    city_from_gps = (
-                        location.raw["address"].get("city")
-                        or location.raw["address"].get("town")
-                        or location.raw["address"].get("village")
-                        or location.raw["address"].get("state")
-                    )
-            except Exception:
-                city_from_gps = None
-        # image_unique_id 중복 체크
-        if (
-            image_unique_id
-            and ImageEmbedding.objects.filter(image_unique_id=image_unique_id).exists()
-        ):
-            return None  # 이미 존재하면 임베딩도 하지 않음
-        embedding_model, embedding = get_image_embedding(tmp_path)
-        point = Point(gps_point[0], gps_point[1]) if gps_point else None
-        date_taken_exif_parsed = None
-        if date_taken_exif:
-            try:
-                date_taken_exif_parsed = parse_datetime(
-                    date_taken_exif.replace(":", "-", 2).replace(" ", "T")
-                )
-                # naive datetime이면 타임존 적용
-                if date_taken_exif_parsed is not None and timezone.is_naive(
-                    date_taken_exif_parsed
-                ):
-                    # 기본값: 한국 타임존
-                    tz = pytz.timezone("Asia/Seoul")
-                    # 위경도 정보가 있으면 해당 위치의 타임존 사용
-                    if gps_point:
-                        tf = TimezoneFinder()
-                        tzname = tf.timezone_at(lng=gps_point[0], lat=gps_point[1])
-                        if tzname:
-                            try:
-                                tz = pytz.timezone(tzname)
-                            except Exception:
-                                pass
-                    date_taken_exif_parsed = tz.localize(date_taken_exif_parsed)
-            except Exception:
-                date_taken_exif_parsed = None
-        saved_path = default_storage.save(f"images/{image.name}", image)
-        obj = ImageEmbedding.objects.create(
-            image_path=saved_path,  # 변경: 경로만 저장
-            embedding=embedding,
-            embedding_model=embedding_model,
-            gps=point,
-            city_from_gps=city_from_gps,
-            date_taken_exif=date_taken_exif_parsed,
-            date_taken_user=date_taken_user,
-            location_user=user_location,
-            image_unique_id=image_unique_id,
-            exif_json=exif_json,
-        )
-        if tag_list:
-            obj.tags.add(*tag_list)
-        return obj
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass
+from .models import ImageEmbedding, SearchQuery
+from .storage.google_drive import list_images_in_google_drive
+from .storage.onedrive import list_images_in_onedrive
+from .utils import get_text_embedding
 
 
 def image_upload(request):
@@ -137,7 +35,7 @@ def image_upload(request):
                 if obj == "not_allowed":
                     context = {"message": "jpg, jpeg, png 파일만 업로드할 수 있습니다."}
                 elif obj:
-                    context = {"message": f"이미지 및 정보 저장 완료"}
+                    context = {"message": "이미지 및 정보 저장 완료"}
                 else:
                     context = {
                         "message": "중복된 이미지(이미 등록된 image_unique_id)로 저장하지 않았습니다."
@@ -228,14 +126,16 @@ def image_search(request):
 
 
 def cloud_image_list(request):
-    """
-    클라우드 드라이브(Google/OneDrive)에서 이미지 목록을 가져와서 사용자에게 보여주는 뷰
+    """클라우드 드라이브(Google/OneDrive)에서 이미지 목록을 가져와서 사용자에게 보여주는 뷰
     인증이 필요하면 인증 URL을 안내한다.
+    선택한 이미지를 임베딩 요청할 수 있다.
     """
     context = {}
     if request.method == "POST":
         cloud = request.POST.get("cloud")  # 'google' or 'onedrive'
         user_email = request.POST.get("cloud_email")
+        action = request.POST.get("action")
+        selected_images = request.POST.getlist("selected_images")
         try:
             if cloud == "google":
                 images = list_images_in_google_drive(user_email)
@@ -245,8 +145,15 @@ def cloud_image_list(request):
                 context["images"] = images
             else:
                 context["message"] = "클라우드 종류를 선택하세요."
+            # 선택한 이미지 임베딩 요청 처리
+            if action == "embed" and selected_images:
+                # 실제 임베딩 로직은 별도 구현 필요 (예: celery task, 즉시 다운로드 후 임베딩 등)
+                context["message"] = (
+                    f"{len(selected_images)}개의 이미지를 임베딩합니다. (구현 필요)"
+                )
+                context["selected_images"] = selected_images
         except Exception as e:
             context["message"] = str(e)
-        context["cloud"] = cloud  # 항상 사용자가 선택한 값을 context에 넣어줌
+        context["cloud"] = cloud
         context["cloud_email"] = user_email
     return render(request, "imagesearch_gemini/cloud_image_list.html", context)

@@ -1,5 +1,4 @@
-"""
-WSGI config for imagesearch project.
+"""WSGI config for imagesearch project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

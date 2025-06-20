@@ -1,9 +1,11 @@
-from django.db import models
-from pgvector.django import VectorField
-from django.contrib.gis.db.models import PointField
-from taggit.managers import TaggableManager
 import os
+
+from pgvector.django import VectorField
+from taggit.managers import TaggableManager
+
 from django.conf import settings
+from django.contrib.gis.db.models import PointField
+from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 

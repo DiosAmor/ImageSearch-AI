@@ -1,5 +1,4 @@
-"""
-ASGI config for imagesearch project.
+"""ASGI config for imagesearch project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

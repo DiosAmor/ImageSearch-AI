@@ -1,6 +1,7 @@
+from django.conf import settings
 from django.contrib import admin
 from django.utils.html import format_html
-from django.conf import settings
+
 from .models import ImageEmbedding, SearchQuery
 
 

@@ -34,17 +34,26 @@
     {% endif %}
     {% if images %}
     <h2>이미지 목록 ({{ cloud }})</h2>
-    <ul>
-      {% for img in images %}
-      <li>
-        {% if cloud == 'google' %}
-        <a href="{{ img.webViewLink }}" target="_blank">{{ img.name }}</a>
-        {% elif cloud == 'onedrive' %}
-        <a href="{{ img.webUrl }}" target="_blank">{{ img.name }}</a>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
+    <form method="post" action="" id="select-images-form">
+      {% csrf_token %}
+      <input type="hidden" name="cloud" value="{{ cloud }}">
+      <input type="hidden" name="cloud_email" value="{{ cloud_email }}">
+      <ul>
+        {% for img in images %}
+        <li>
+          <label>
+            <input type="checkbox" name="selected_images" value="{{ img.id }}">
+            {% if cloud == 'google' %}
+              <a href="{{ img.webViewLink }}" target="_blank">{{ img.name }}</a>
+            {% elif cloud == 'onedrive' %}
+              <a href="{{ img.webUrl }}" target="_blank">{{ img.name }}</a>
+            {% endif %}
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      <button type="submit" name="action" value="embed">선택한 이미지 임베딩</button>
+    </form>
     {% endif %}
   </body>
 </html>

@@ -1,10 +1,13 @@
-from .models import OAuthToken
-from django.utils import timezone
 import datetime
-import os
 import json
+import os
+
 import requests
+
 from django.conf import settings
+from django.utils import timezone
+
+from .models import OAuthToken
 
 
 def save_token(user_email, provider, token_data):
@@ -61,7 +64,7 @@ def refresh_google_access_token(refresh_token):
     CONFIG_FILE = os.path.join(
         settings.BASE_DIR, "oauth/credentials/googledrive-auth-client.json"
     )
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    with open(CONFIG_FILE, encoding="utf-8") as f:
         config = json.load(f)
     client_id = config["client_id"]
     client_secret = config["client_secret"]
@@ -82,7 +85,7 @@ def refresh_onedrive_access_token(refresh_token):
     CONFIG_FILE = os.path.join(
         settings.BASE_DIR, "oauth/credentials/onedrive-auth-client.json"
     )
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    with open(CONFIG_FILE, encoding="utf-8") as f:
         config = json.load(f)
     client_id = config["client_id"]
     client_secret = config["client_secret"]
