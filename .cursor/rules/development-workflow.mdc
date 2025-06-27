@@ -1,0 +1,153 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 개발 워크플로우 규칙
+
+## 프로젝트 구조
+
+### Django 앱 구조
+- **imagesearch_gemini**: 메인 이미지 검색 앱
+  - [models.py](mdc:django/imagesearch_gemini/models.py) - 데이터 모델
+  - [views.py](mdc:django/imagesearch_gemini/views.py) - 뷰 로직
+  - [urls.py](mdc:django/imagesearch_gemini/urls.py) - URL 라우팅
+  - [tasks.py](mdc:django/imagesearch_gemini/tasks.py) - Celery 태스크
+  - [utils/](mdc:django/imagesearch_gemini/utils) - 유틸리티 함수들
+
+- **oauth**: OAuth 인증 앱
+  - [models.py](mdc:django/oauth/models.py) - OAuth 토큰 모델
+  - [views.py](mdc:django/oauth/views.py) - 인증 뷰
+
+### 주요 설정 파일
+- [settings.py](mdc:django/imagesearch/settings.py) - Django 설정
+- [requirements.txt](mdc:requirements.txt) - Python 의존성
+- [docker-compose.yaml](mdc:docker-compose.yaml) - Docker 설정
+- [README.md](mdc:README.md) - 프로젝트 문서
+
+## 코딩 스타일
+
+### Python
+- **PEP 8** 준수
+- **Black** 포맷터 사용 권장
+- **isort**로 import 정렬
+- **docstring** 작성 (Google 스타일)
+
+### Django
+- **모델**: `models.py`에서 정의
+- **뷰**: 함수 기반 뷰 사용 (필요시 클래스 기반)
+- **URL**: 명확한 패턴 사용
+- **템플릿**: Django 템플릿 언어 사용
+
+### 데이터베이스
+- **PostgreSQL 17** + **pgvector** + **PostGIS**
+- **마이그레이션**: 변경사항마다 마이그레이션 생성
+- **인덱스**: 벡터 검색을 위한 IVFFlat 인덱스 사용
+
+## 개발 환경 설정
+
+### 필수 도구
+- **Python 3.11**
+- **Docker & Docker Compose**
+- **PostgreSQL 17** (Docker)
+- **Redis** (Celery 브로커)
+
+### 환경 변수
+`.env` 파일에 다음 설정 필요:
+```
+POSTGRES_DB=imagesearch
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+GOOGLE_APPLICATION_CREDENTIALS=path/to/vertex-ai-api-key.json
+```
+
+## 기능 개발 가이드
+
+### 이미지 업로드
+1. **로컬 업로드**: `process_single_image()` 함수 사용
+2. **클라우드 연동**: OAuth 인증 후 URL 저장
+3. **비동기 처리**: Celery 태스크로 임베딩 생성
+
+### 벡터 검색
+1. **텍스트 임베딩**: `get_text_embedding()` 함수 사용
+2. **유사도 검색**: pgvector의 `<->` 연산자 사용
+3. **결과 캐싱**: `SearchQuery` 모델에 저장
+
+### OAuth 인증
+1. **Google Drive**: `google_drive.py` 모듈 사용
+2. **OneDrive**: `onedrive.py` 모듈 사용
+3. **토큰 관리**: `OAuthToken` 모델에 저장
+
+## 테스트
+
+### 테스트 파일 위치
+- [test/embedding_test.py](mdc:test/embedding_test.py) - 임베딩 테스트
+- [test/gemini_count_tokens.py](mdc:test/gemini_count_tokens.py) - 토큰 카운트 테스트
+
+### 테스트 실행
+```bash
+# Django 테스트
+python manage.py test
+
+# 특정 앱 테스트
+python manage.py test imagesearch_gemini
+
+# 커버리지 테스트
+coverage run --source='.' manage.py test
+coverage report
+```
+
+## 배포
+
+### Docker 배포
+1. **이미지 빌드**: `docker build -t imagesearch-ai .`
+2. **컨테이너 실행**: `docker-compose up -d`
+3. **마이그레이션**: `docker-compose exec web python manage.py migrate`
+
+### 환경별 설정
+- **개발**: `DEBUG=True`, 로컬 데이터베이스
+- **프로덕션**: `DEBUG=False`, 프로덕션 데이터베이스
+
+## 문제 해결
+
+### 일반적인 이슈
+1. **GDAL 라이브러리**: Windows에서 OSGeo4W 설치 필요
+2. **벡터 인덱스**: 수동으로 IVFFlat 인덱스 생성
+3. **OAuth 토큰**: 만료 시 재인증 필요
+
+### 로그 확인
+```bash
+# Django 로그
+docker-compose logs web
+
+# Celery 로그
+docker-compose logs celery
+
+# 데이터베이스 로그
+docker-compose logs db
+```
+
+## 성능 최적화
+
+### 벡터 검색
+- **IVFFlat 인덱스** 사용
+- **결과 제한**: 기본 20개, 최대 50개
+- **쿼리 캐싱**: 동일한 검색어 재사용
+
+### 이미지 처리
+- **비동기 처리**: Celery 워커 사용
+- **파일 크기 제한**: 업로드 시 검증
+- **중복 방지**: `image_unique_id` 기반
+
+## 보안
+
+### 환경 변수
+- **시크릿 키**: `.env` 파일에 저장
+- **API 키**: Google Cloud 인증 파일 사용
+- **데이터베이스**: 강력한 비밀번호 사용
+
+### 파일 업로드
+- **확장자 검증**: jpg, jpeg, png만 허용
+- **크기 제한**: 적절한 파일 크기 제한
+- **경로 검증**: 디렉토리 트래버설 방지
+
