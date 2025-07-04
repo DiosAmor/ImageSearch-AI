@@ -10,7 +10,7 @@
 
 - **자연어 쿼리 기반 검색**: 사용자가 입력한 자연어를 벡터로 변환하여 유사한 이미지 검색
 - **벡터 유사도 검색**: pgvector의 IVFFlat 인덱스를 활용한 고성능 벡터 검색
-- **검색 결과 캐싱**: 동일한 검색어에 대한 결과 캐싱으로 응답 속도 향상
+- **검색 결과 캐싱**: 동일한 검색어에 대한 결과 캐싱으로 응답 속도 향상 (추가 예정)
 - **검색 히스토리**: 사용자의 검색 기록 저장 및 관리
 
 #### 📤 이미지 업로드
@@ -90,6 +90,8 @@ ImageSearch-AI/
 │   │   ├── tests/                  # OAuth 테스트
 │   │   │   └── test_oauth.py
 │   │   └── credentials/            # OAuth 인증 정보
+│   │       ├── googledrive-auth-client.json   # Google Drive OAuth 설정
+│   │       └── onedrive-auth-client.json       # OneDrive OAuth 설정
 │   └── test/                       # 통합 테스트
 │       └── test_full_flow.py
 ├── docker-compose.yaml             # Docker 구성
@@ -109,6 +111,11 @@ cd ImageSearch-AI
 
 # 환경 변수 설정 (현재 .env.example 파일이 없으므로 직접 생성)
 # .env 파일을 생성하고 필요한 설정 입력
+
+# OAuth 인증 정보 설정
+# django/oauth/credentials/ 폴더에 다음 파일들을 생성:
+# - googledrive-auth-client.json: Google Drive OAuth 클라이언트 정보
+# - onedrive-auth-client.json: OneDrive OAuth 클라이언트 정보
 ```
 
 #### 2. Docker를 사용한 실행
@@ -161,10 +168,9 @@ GOOGLE_APPLICATION_CREDENTIALS=path/to/vertex-ai-api-key.json
 GOOGLE_CLOUD_PROJECT=your-project-id
 
 # OAuth 설정
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-ONEDRIVE_CLIENT_ID=your-onedrive-client-id
-ONEDRIVE_CLIENT_SECRET=your-onedrive-client-secret
+# Google Drive와 OneDrive OAuth 설정은 django/oauth/credentials/ 폴더에 JSON 파일로 저장
+# - googledrive-auth-client.json: Google Drive OAuth 클라이언트 정보
+# - onedrive-auth-client.json: OneDrive OAuth 클라이언트 정보
 
 # Django 설정
 SECRET_KEY=your-django-secret-key
@@ -191,52 +197,13 @@ coverage report
 coverage html
 ```
 
-### API 사용법
-
-#### 이미지 업로드
-
-```bash
-POST /upload/
-Content-Type: multipart/form-data
-
-{
-  "image": [파일],
-  "title": "이미지 제목",
-  "description": "이미지 설명",
-  "location": "촬영 장소",
-  "date_taken": "2024-01-01"
-}
-```
-
-#### 이미지 검색
-
-```bash
-POST /search/
-Content-Type: application/json
-
-{
-  "query": "검색할 자연어 쿼리",
-  "limit": 20
-}
-```
-
-#### OAuth 인증
-
-```bash
-# Google Drive 연동
-GET /oauth/google/login/
-
-# OneDrive 연동
-GET /oauth/onedrive/login/
-```
-
 ### 성능 최적화
 
 #### 벡터 검색 최적화
 
 - **IVFFlat 인덱스**: 고성능 벡터 검색을 위한 인덱스 사용
 - **결과 제한**: 기본 20개, 최대 50개 결과로 응답 속도 향상
-- **쿼리 캐싱**: 동일한 검색어에 대한 결과 재사용
+- **쿼리 캐싱**: 동일한 검색어에 대한 결과 재사용 (추가 예정)
 
 #### 이미지 처리 최적화
 
