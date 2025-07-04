@@ -146,6 +146,7 @@ def validate_upload_data(
     date_taken: str = None,
     location: str = None,
     tags: str = None,
+    skip_file_validation: bool = False,
 ) -> Tuple[bool, List[str]]:
     """업로드 데이터를 종합적으로 검증합니다.
 
@@ -154,6 +155,7 @@ def validate_upload_data(
         date_taken: 촬영 날짜
         location: 촬영 장소
         tags: 태그
+        skip_file_validation: 파일 검증을 건너뛸지 여부 (클라우드 이미지용)
 
     Returns:
         (is_valid, error_messages)
@@ -161,14 +163,15 @@ def validate_upload_data(
     """
     errors = []
 
-    # 파일 검증
-    if not files:
-        errors.append("업로드할 파일을 선택해주세요.")
-    else:
-        for file in files:
-            is_valid, error = FileValidator.validate_image_file(file)
-            if not is_valid:
-                errors.append(f"{file.name}: {error}")
+    # 파일 검증 (skip_file_validation이 False일 때만)
+    if not skip_file_validation:
+        if not files:
+            errors.append("업로드할 파일을 선택해주세요.")
+        else:
+            for file in files:
+                is_valid, error = FileValidator.validate_image_file(file)
+                if not is_valid:
+                    errors.append(f"{file.name}: {error}")
 
     # 태그 검증
     if tags:

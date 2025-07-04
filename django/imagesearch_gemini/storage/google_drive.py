@@ -1,38 +1,19 @@
+import tempfile
 from datetime import datetime
 
+import requests
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from imagesearch_gemini.utils.validators import validate_upload_data
 from oauth.google_drive import build_google_auth_url
 from oauth.utils import get_token
+
+from django.core.exceptions import ValidationError
+from django.core.files import File
 
 # 파일 크기 변환을 위한 상수
 BYTES_PER_KB = 1024
 BYTES_PER_MB = 1024 * 1024
-
-
-def list_images_in_google_drive(user_email, page_size=20):
-    """인증된 사용자의 Google Drive에서 이미지 파일 목록을 가져온다.
-    인증이 안 되어 있으면 인증 URL을 반환하는 Exception을 발생시킨다.
-    반환: [{'id': ..., 'name': ..., 'webViewLink': ...}, ...]
-    """
-    access_token = get_token(user_email, "google")
-    if not access_token:
-        auth_url = build_google_auth_url()
-        raise Exception(
-            f"Google Drive 인증이 필요합니다. <a href='{auth_url}' class='cloud-auth-link' target='_blank'>Google Drive 인증하기</a>"
-        )
-    creds = Credentials(token=access_token)
-    service = build("drive", "v3", credentials=creds)
-    results = (
-        service.files()
-        .list(
-            pageSize=page_size,
-            fields="files(id, name, mimeType, webViewLink)",
-            q="mimeType contains 'image/' and trashed = false",
-        )
-        .execute()
-    )
-    return results.get("files", [])
 
 
 def list_folders_and_images_in_google_drive(
@@ -64,7 +45,17 @@ def list_folders_and_images_in_google_drive(
     if is_shared and parent_id:
         if not drive_id:
             # driveId 없는 공유폴더는 children 탐색 불가
-            return [], [], "(공유 폴더 정보 없음)", {"parent_id": None, "drive_id": None, "is_shared": True, "error": "Google Drive 공유폴더의 driveId 정보가 없어 하위 탐색이 불가합니다."}
+            return (
+                [],
+                [],
+                "(공유 폴더 정보 없음)",
+                {
+                    "parent_id": None,
+                    "drive_id": None,
+                    "is_shared": True,
+                    "error": "Google Drive 공유폴더의 driveId 정보가 없어 하위 탐색이 불가합니다.",
+                },
+            )
         try:
             folder = (
                 service.files()
@@ -247,3 +238,31 @@ def list_folders_and_images_in_google_drive(
                 }
             )
     return folders, images, folder_name, parent_info
+
+
+def save_google_drive_image(
+    image_url: str, file_name: str, date_taken_user=None, location_user=None, tags=None
+) -> str:
+    """Google Drive 이미지를 다운로드하여 임시로 저장하고, 임시 파일 경로를 반환합니다."""
+    # 파일 다운로드 및 검증
+    response = requests.get(image_url, timeout=30)
+    response.raise_for_status()
+    content_type = response.headers.get("content-type", "")
+    if not any(ext in content_type.lower() for ext in ["jpeg", "jpg", "png"]):
+        raise ValidationError("지원하지 않는 이미지 형식입니다.")
+    if not any(file_name.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png"]):
+        file_name += ".jpg"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+        temp_file.write(response.content)
+        temp_path = temp_file.name
+        with open(temp_path, "rb") as f:
+            file_obj = File(f, name=file_name)
+            is_valid, errors = validate_upload_data(
+                [file_obj],
+                date_taken=date_taken_user,
+                location=location_user,
+                tags=tags,
+            )
+            if not is_valid:
+                raise ValidationError("; ".join(errors))
+    return temp_path

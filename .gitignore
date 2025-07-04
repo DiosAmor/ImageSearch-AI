@@ -1,5 +1,6 @@
 .venv
 .env
+*.log
 
 *api-key.json
 *auth-client.json

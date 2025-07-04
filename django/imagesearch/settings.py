@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 환경 변수 로드
-load_dotenv(os.path.join(BASE_DIR, "..", ".env"))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -152,7 +152,7 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # 업로드 파일 개수 제한 (기본값: 1000)
-DATA_UPLOAD_MAX_NUMBER_FILES = int(os.getenv("DATA_UPLOAD_MAX_NUMBER_FILES", "10000"))
+DATA_UPLOAD_MAX_NUMBER_FILES = int(os.getenv("DATA_UPLOAD_MAX_NUMBER_FILES", "1000"))
 
 # Celery 설정
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
@@ -162,6 +162,14 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# Celery Beat 스케줄 설정
+CELERY_BEAT_SCHEDULE = {
+    "retry-failed-embeddings": {
+        "task": "imagesearch_gemini.tasks.retry_failed_embeddings",
+        "schedule": 300.0,  # 5분마다 실행
+    },
+}
 
 # # 캐시 설정
 # CACHES = {

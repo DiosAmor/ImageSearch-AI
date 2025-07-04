@@ -1,46 +1,40 @@
+import logging
 import urllib.parse
-from datetime import datetime
 
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from imagesearch_gemini.tasks import generate_image_embedding_task
 
 from .models import ImageEmbedding
-from .storage.google_drive import list_folders_and_images_in_google_drive
-from .storage.onedrive import list_folders_and_images_in_onedrive
-from .utils.image_processing import process_single_image
+from .storage.google_drive import (
+    list_folders_and_images_in_google_drive,
+    save_google_drive_image,
+)
+from .storage.local_drive import save_uploaded_image
+from .storage.onedrive import list_folders_and_images_in_onedrive, save_onedrive_image
+from .utils.image_processing import process_image
 from .utils.logger import log_performance
 from .utils.search import VectorSearchEngine
 from .utils.validators import (
     DateValidator,
     TextValidator,
-    validate_upload_data,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @log_performance
-def image_upload(request):
-    """이미지 업로드 뷰입니다."""
+def image_select(request):
+    """이미지 선택 및 임베딩 관리 뷰입니다."""
     context = {}
 
-    # 클라우드 업로드 선택 시 cloud_image_list로 리다이렉트
+    # 클라우드에서 선택된 이미지 정보 표시
     if request.method == "GET":
-        select_mode = request.GET.get("select_mode")
-        cloud = request.GET.get("cloud")
-        cloud_email = request.GET.get("cloud_email")
         folder_name = request.GET.get("folder_name")
         image_names = request.GET.get("image_names")
         image_urls = request.GET.get("image_urls")
-
-        if (
-            select_mode in ["single", "folder"]
-            and cloud in ["google", "onedrive"]
-            and cloud_email
-        ):
-            # cloud_image_list로 파라미터 전달
-            return redirect(
-                f"/cloud-image-list/?cloud={cloud}&cloud_email={cloud_email}&select_mode={select_mode}"
-            )
 
         # 클라우드에서 선택된 폴더/이미지명 표시
         context.update(
@@ -52,7 +46,7 @@ def image_upload(request):
                 "image_urls": image_urls,
             }
         )
-        return render(request, "imagesearch_gemini/image_upload.html", context)
+        return render(request, "imagesearch_gemini/image_select.html", context)
 
     if request.method == "POST":
         upload_type = request.POST.get("upload_type", "single")
@@ -60,7 +54,85 @@ def image_upload(request):
         user_location = request.POST.get("location")
         user_tags = request.POST.get("tags")
 
-        # 입력 데이터 검증
+        if upload_type == "cloud":
+            image_urls = request.POST.get("image_urls")
+            image_names = request.POST.get("image_names")
+
+            if not image_urls:
+                context = {"message": "클라우드에서 이미지를 먼저 선택해주세요."}
+                return render(request, "imagesearch_gemini/image_select.html", context)
+
+            url_list = image_urls.split(",") if image_urls else []
+            name_list = image_names.split(",") if image_names else []
+
+            saved_count = 0
+            skipped_count = 0
+            not_allowed_count = 0
+            download_failed_count = 0
+
+            for i, url in enumerate(url_list):
+                try:
+                    file_name = (
+                        name_list[i] if i < len(name_list) else f"cloud_image_{i}.jpg"
+                    )
+                    if not any(
+                        file_name.lower().endswith(ext)
+                        for ext in [".jpg", ".jpeg", ".png"]
+                    ):
+                        file_name += ".jpg"
+
+                    try:
+                        if "drive.google.com" in url:
+                            tmp_path = save_google_drive_image(
+                                image_url=url,
+                                file_name=file_name,
+                                date_taken_user=user_date_taken,
+                                location_user=user_location,
+                                tags=user_tags,
+                            )
+                        elif "1drv.ms" in url or "onedrive.live.com" in url:
+                            tmp_path = save_onedrive_image(
+                                image_url=url,
+                                file_name=file_name,
+                                date_taken_user=user_date_taken,
+                                location_user=user_location,
+                                tags=user_tags,
+                            )
+                        else:
+                            raise ValidationError("지원하지 않는 클라우드 URL입니다.")
+
+                        obj = process_image(
+                            image_path=tmp_path,
+                            date_taken_user=user_date_taken,
+                            user_location=user_location,
+                            tag_list=[
+                                t.strip() for t in user_tags.split(",") if t.strip()
+                            ]
+                            if user_tags
+                            else [],
+                        )
+                        if obj == "not_allowed":
+                            not_allowed_count += 1
+                        elif obj:
+                            generate_image_embedding_task.delay(obj.id)
+                            saved_count += 1
+                        else:
+                            skipped_count += 1
+                    except Exception as save_error:
+                        download_failed_count += 1
+                        context["message"] = str(save_error)
+                        logger.error(
+                            f"클라우드 이미지 저장 실패: {url}, 오류: {save_error}"
+                        )
+                except Exception as e:
+                    download_failed_count += 1
+                    logger.error(f"클라우드 이미지 처리 실패: {url}, 오류: {e}")
+
+            context["message"] = (
+                f"클라우드 이미지 처리: {saved_count}개 저장, {skipped_count}개 중복 건너뜀, {not_allowed_count}개 허용되지 않은 확장자 건너뜀, {download_failed_count}개 처리 실패"
+            )
+            return render(request, "imagesearch_gemini/image_select.html", context)
+
         files = (
             request.FILES.getlist("images")
             if upload_type == "folder"
@@ -68,42 +140,36 @@ def image_upload(request):
         )
         files = [f for f in files if f]  # None 제거
 
-        is_valid, errors = validate_upload_data(
-            files, user_date_taken, user_location, user_tags
-        )
-
-        if not is_valid:
-            context = {"message": "<br>".join(errors)}
-            return render(request, "imagesearch_gemini/image_upload.html", context)
-
-        # 날짜 변환
-        date_taken_user = None
-        if user_date_taken:
-            try:
-                date_taken_user = datetime.strptime(user_date_taken, "%Y-%m-%d").date()
-            except ValueError:
-                context = {"message": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"}
-                return render(request, "imagesearch_gemini/image_upload.html", context)
-
-        # 태그 리스트 생성
-        tag_list = (
-            [t.strip() for t in user_tags.split(",") if t.strip()] if user_tags else []
-        )
-
-        # 이미지 처리
         if upload_type == "single":
             if files:
-                obj = process_single_image(
-                    files[0], date_taken_user, user_location, tag_list
-                )
-                if obj == "not_allowed":
-                    context = {"message": "jpg, jpeg, png 파일만 업로드할 수 있습니다."}
-                elif obj:
-                    context = {"message": "이미지 및 정보 저장 완료"}
-                else:
-                    context = {
-                        "message": "중복된 이미지(이미 등록된 image_unique_id)로 저장하지 않았습니다."
-                    }
+                try:
+                    tmp_path = save_uploaded_image(
+                        files[0],
+                        date_taken_user=user_date_taken,
+                        location_user=user_location,
+                        tags=user_tags,
+                    )
+                    obj = process_image(
+                        image_path=tmp_path,
+                        date_taken_user=user_date_taken,
+                        user_location=user_location,
+                        tag_list=[t.strip() for t in user_tags.split(",") if t.strip()]
+                        if user_tags
+                        else [],
+                    )
+                    if obj == "not_allowed":
+                        context = {
+                            "message": "jpg, jpeg, png 파일만 업로드할 수 있습니다."
+                        }
+                    elif obj:
+                        generate_image_embedding_task.delay(obj.id)
+                        context = {"message": "이미지 및 정보 저장 완료"}
+                    else:
+                        context = {
+                            "message": "중복된 이미지(이미 등록된 image_unique_id)로 저장하지 않았습니다."
+                        }
+                except Exception as e:
+                    context = {"message": str(e)}
             else:
                 context = {"message": "파일이 없습니다."}
 
@@ -111,28 +177,41 @@ def image_upload(request):
             saved_count = 0
             skipped_count = 0
             not_allowed_count = 0
-
             for image in files:
-                obj = process_single_image(
-                    image, date_taken_user, user_location, tag_list
-                )
-                if obj == "not_allowed":
+                try:
+                    tmp_path = save_uploaded_image(
+                        image,
+                        date_taken_user=user_date_taken,
+                        location_user=user_location,
+                        tags=user_tags,
+                    )
+                    obj = process_image(
+                        image_path=tmp_path,
+                        date_taken_user=user_date_taken,
+                        user_location=user_location,
+                        tag_list=[t.strip() for t in user_tags.split(",") if t.strip()]
+                        if user_tags
+                        else [],
+                    )
+                    if obj == "not_allowed":
+                        not_allowed_count += 1
+                    elif obj:
+                        generate_image_embedding_task.delay(obj.id)
+                        saved_count += 1
+                    else:
+                        skipped_count += 1
+                except Exception as e:
                     not_allowed_count += 1
-                elif obj:
-                    saved_count += 1
-                else:
-                    skipped_count += 1
-
-            context = {
-                "message": f"폴더 업로드: {saved_count}개 저장, {skipped_count}개 중복 건너뜀, {not_allowed_count}개 허용되지 않은 확장자 건너뜀"
-            }
-
+                    context["message"] = str(e)
+            context["message"] = (
+                f"폴더 업로드: {saved_count}개 저장, {skipped_count}개 중복 건너뜀, {not_allowed_count}개 허용되지 않은 확장자 건너뜀"
+            )
         else:
             context = {"message": "알 수 없는 업로드 타입"}
 
-        return render(request, "imagesearch_gemini/image_upload.html", context)
+        return render(request, "imagesearch_gemini/image_select.html", context)
 
-    return render(request, "imagesearch_gemini/image_upload.html")
+    return render(request, "imagesearch_gemini/image_select.html")
 
 
 @log_performance
@@ -231,7 +310,7 @@ def cloud_image_list(request):
     else:
         parent_info = {"parent_id": None, "drive_id": None, "is_shared": is_shared}
 
-    # 이미지 선택 후 save 버튼 클릭 시 image_upload로 이동
+    # 이미지 선택 후 save 버튼 클릭 시 image_select로 이동
     if request.method == "POST" and selected_images:
         img_names = [img["name"] for img in images if img["id"] in selected_images]
         img_urls = [img["url"] for img in images if img["id"] in selected_images]
@@ -243,7 +322,7 @@ def cloud_image_list(request):
                 "image_urls": ",".join(img_urls),
             }
         )
-        return redirect(f"/image-upload/?{params}")
+        return redirect(f"/image-select/?{params}")
 
     context.update(
         {

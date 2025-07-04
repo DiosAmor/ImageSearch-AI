@@ -1,9 +1,14 @@
 import os
+import tempfile
 from datetime import datetime
 
 import requests
+from imagesearch_gemini.utils.validators import validate_upload_data
 from oauth.onedrive import build_onedrive_auth_url
 from oauth.utils import get_token
+
+from django.core.exceptions import ValidationError
+from django.core.files import File
 
 # 파일 크기 변환을 위한 상수
 BYTES_PER_KB = 1024
@@ -11,28 +16,6 @@ BYTES_PER_MB = 1024 * 1024
 
 # HTTP 응답 상태 코드
 HTTP_OK = 200
-
-
-def list_images_in_onedrive(user_email, top=20):
-    """인증된 사용자의 OneDrive에서 이미지 파일 목록을 가져온다.
-    인증이 안 되어 있으면 인증 URL을 반환하는 Exception을 발생시킨다.
-    반환: [{'id': ..., 'name': ..., 'webUrl': ...}, ...]
-    """
-    access_token = get_token(user_email, "onedrive")
-    if not access_token:
-        auth_url = build_onedrive_auth_url()
-        # 올바른 OneDrive 인증 URL을 안내
-        raise Exception(
-            f"OneDrive 인증이 필요합니다. <a href='{auth_url}' class='cloud-auth-link' target='_blank'>OneDrive 인증하기</a>"
-        )
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
-    url = f"https://graph.microsoft.com/v1.0/me/drive/root/children?$top={top}"
-    response = requests.get(url, headers=headers, timeout=30)
-    if response.status_code == HTTP_OK:
-        return response.json().get("value", [])
-    raise Exception(f"OneDrive 목록 조회 실패: {response.text}")
 
 
 def _parse_onedrive_items(items, is_shared=False):
@@ -179,3 +162,30 @@ def _is_image_file(filename: str) -> bool:
     ]
     _, ext = os.path.splitext(filename.lower())
     return ext in image_extensions
+
+
+def save_onedrive_image(
+    image_url: str, file_name: str, date_taken_user=None, location_user=None, tags=None
+) -> str:
+    """OneDrive 이미지를 다운로드하여 임시로 저장하고, 임시 파일 경로를 반환합니다."""
+    response = requests.get(image_url, timeout=30)
+    response.raise_for_status()
+    content_type = response.headers.get("content-type", "")
+    if not any(ext in content_type.lower() for ext in ["jpeg", "jpg", "png"]):
+        raise ValidationError("지원하지 않는 이미지 형식입니다.")
+    if not any(file_name.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png"]):
+        file_name += ".jpg"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+        temp_file.write(response.content)
+        temp_path = temp_file.name
+        with open(temp_path, "rb") as f:
+            file_obj = File(f, name=file_name)
+            is_valid, errors = validate_upload_data(
+                [file_obj],
+                date_taken=date_taken_user,
+                location=location_user,
+                tags=tags,
+            )
+            if not is_valid:
+                raise ValidationError("; ".join(errors))
+    return temp_path

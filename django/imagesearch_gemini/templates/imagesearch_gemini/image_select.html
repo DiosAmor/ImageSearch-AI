@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="description"
+              content="이미지 선택 및 임베딩 관리 페이지입니다. 로컬 또는 클라우드에서 이미지를 선택하여 임베딩을 생성할 수 있습니다." />
+        <meta name="keywords"
+              content="이미지, 사진, 선택, 임베딩, 로컬, 클라우드, select, embedding" />
+        <title>이미지 선택 및 임베딩 관리</title>
+        {% load static %}
+        <link rel="stylesheet"
+              href="{% static 'imagesearch_gemini/css/styles.css' %}" />
+        <script>
+      function showSection(section) {
+        const sections = [
+          "local-single",
+          "local-folder",
+          "cloud",
+        ];
+        sections.forEach((id) => {
+          document.getElementById(id).className = "upload-section";
+        });
+        document.getElementById(section).className =
+          "upload-section active-section";
+      }
+        </script>
+    </head>
+    <body>
+        <h1>이미지 선택 및 임베딩 관리</h1>
+        {% if folder_name or image_names %}
+            <div class="selected-items-container">
+                {% if folder_name %}
+                    <b>선택한 폴더:</b> {{ folder_name }}
+                    <br />
+                {% endif %}
+                {% if image_names %}<b>선택한 이미지:</b> {{ image_names|linebreaksbr }}{% endif %}
+            </div>
+        {% endif %}
+        {% if message %}<p class="success-message">{{ message }}</p>{% endif %}
+        <div>
+            <button type="button" onclick="showSection('local-single')">로컬 한 장 선택</button>
+            <button type="button" onclick="showSection('local-folder')">로컬 폴더 선택</button>
+            <button type="button" onclick="showSection('cloud')">클라우드 선택</button>
+        </div>
+        <br />
+        <div id="local-single" class="upload-section active-section">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="upload_type" value="single" />
+                <label>이미지 선택:</label>
+                <input type="file" name="image" accept="image/*" required />
+                {% include "imagesearch_gemini/_meta_form.html" %}
+                <button type="submit">임베딩 생성</button>
+            </form>
+        </div>
+        <div id="local-folder" class="upload-section">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="upload_type" value="folder" />
+                <label>폴더 선택:</label>
+                <input type="file"
+                       name="images"
+                       accept="image/*"
+                       webkitdirectory
+                       directory
+                       multiple />
+                {% include "imagesearch_gemini/_meta_form.html" %}
+                <button type="submit">임베딩 생성</button>
+            </form>
+        </div>
+        <div id="cloud" class="upload-section">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="upload_type" value="cloud" />
+                <input type="hidden" name="image_urls" value="{{ image_urls|default:'' }}" />
+                <input type="hidden" name="image_names" value="{{ image_names|default:'' }}" />
+                <label>클라우드 연결:</label>
+                <a href="{% url 'cloud_image_list' %}">
+                    <button type="button">클라우드에서 이미지/폴더 선택</button>
+                </a>
+                <span class="cloud-support">지원: Google Drive, OneDrive</span>
+                <p class="cloud-description">클라우드 드라이브에서 이미지나 폴더를 선택하여 임베딩을 생성할 수 있습니다.</p>
+                {% include "imagesearch_gemini/_meta_form.html" %}
+                <button type="submit">임베딩 생성</button>
+            </form>
+        </div>
+        <!-- 임베딩 상태 확인 섹션 -->
+        <div class="embedding-status-section">
+            <h2>임베딩 상태 확인</h2>
+            <div class="status-summary">
+                <a href="{% url 'embedding_status_list' %}">
+                    <button type="button" class="status-overview-btn">전체 임베딩 상태 보기</button>
+                </a>
+            </div>
+        </div>
+    </body>
+</html>

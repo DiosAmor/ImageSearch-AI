@@ -43,7 +43,7 @@ class FullFlowIntegrationTests(TestCase):
         }
         files = {"image": self.test_image}
 
-        response = self.client.post(reverse("image_upload"), upload_data, files=files)
+        response = self.client.post(reverse("image_select"), upload_data, files=files)
         self.assertEqual(response.status_code, 200)
         self.assertIn("이미지 및 정보 저장 완료", response.content.decode())
 
@@ -143,7 +143,7 @@ class FullFlowIntegrationTests(TestCase):
         upload_data = {"upload_type": "single"}
         files = {"image": invalid_file}
 
-        response = self.client.post(reverse("image_upload"), upload_data, files=files)
+        response = self.client.post(reverse("image_select"), upload_data, files=files)
         self.assertEqual(response.status_code, 200)
         self.assertIn("지원하지 않는 파일 형식", response.content.decode())
 

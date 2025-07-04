@@ -5,7 +5,7 @@ from . import views
 
 urlpatterns = [
     path("", lambda request: redirect("search/")),
-    path("image-upload/", views.image_upload, name="image_upload"),
+    path("image-select/", views.image_select, name="image_select"),
     path("search/", views.image_search, name="image_search"),
     path("cloud-image-list/", views.cloud_image_list, name="cloud_image_list"),
     path(

@@ -6,7 +6,7 @@ services:
     container_name: imagesearch-db
     restart: always
     env_file:
-      - .env
+      - django/.env
     ports:
       - "5432:5432"
     volumes:
@@ -26,6 +26,54 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+  web:
+    build:
+      context: ./django
+      dockerfile: ../Dockerfile
+    container_name: imagesearch-web
+    restart: always
+    env_file:
+      - django/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./django:/app
+      - media_data:/app/media
+    depends_on:
+      - db
+      - redis
+    command: python manage.py runserver 0.0.0.0:8000
+  celery:
+    build:
+      context: ./django
+      dockerfile: ../Dockerfile
+    container_name: imagesearch-celery
+    restart: always
+    env_file:
+      - django/.env
+    volumes:
+      - ./django:/app
+      - media_data:/app/media
+    depends_on:
+      - db
+      - redis
+    command: celery -A imagesearch worker --loglevel=info
+  celery-beat:
+    build:
+      context: ./django
+      dockerfile: ../Dockerfile
+    container_name: imagesearch-celery-beat
+    restart: always
+    env_file:
+      - django/.env
+    volumes:
+      - ./django:/app
+      - media_data:/app/media
+    depends_on:
+      - db
+      - redis
+    command: celery -A imagesearch beat --loglevel=info
 volumes:
   db_data:
   redis_data:
+  media_data:

@@ -64,6 +64,7 @@
 ```
 ImageSearch-AI/
 ├── django/                          # Django 프로젝트 루트
+│   ├── .env                         # 환경 변수 설정 파일
 │   ├── imagesearch/                 # 프로젝트 설정
 │   │   ├── settings.py             # Django 설정
 │   │   └── urls.py                 # 메인 URL 설정
@@ -109,8 +110,8 @@ ImageSearch-AI/
 git clone https://github.com/your-username/ImageSearch-AI.git
 cd ImageSearch-AI
 
-# 환경 변수 설정 (현재 .env.example 파일이 없으므로 직접 생성)
-# .env 파일을 생성하고 필요한 설정 입력
+# 환경 변수 설정
+# django/.env 파일을 생성하고 필요한 설정 입력
 
 # OAuth 인증 정보 설정
 # django/oauth/credentials/ 폴더에 다음 파일들을 생성:
@@ -135,13 +136,16 @@ docker-compose exec web python manage.py createsuperuser
 
 ```bash
 # Python 가상환경 생성
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # 의존성 설치
 pip install -r requirements.txt
 
-# 환경 변수 설정
+# Django 디렉토리로 이동
+cd django
+
+# 환경 변수 설정 (django/.env 파일 사용)
 export $(cat .env | xargs)
 
 # 데이터베이스 마이그레이션
@@ -153,7 +157,7 @@ python manage.py runserver
 
 ### 환경 변수 설정
 
-`.env` 파일에 다음 설정이 필요합니다:
+`django/.env` 파일에 다음 설정이 필요합니다:
 
 ```env
 # 데이터베이스 설정
