@@ -1,18 +1,20 @@
 ---
 description: AI/ML 개발 가이드라인
-globs: 
 alwaysApply: false
 ---
+
 # AI/ML 개발 가이드라인
 
 ## Gemini API 사용
 
 ### 모델 정보
+
 - **임베딩 모델**: `multimodalembedding@001`
 - **벡터 차원**: 1408차원
 - **지원 기능**: 이미지 및 텍스트 임베딩
 
 ### API 설정
+
 - **인증**: Google Cloud 서비스 계정 키 사용
 - **파일 위치**: [vertex-ai-api-key.json](mdc:vertex-ai-api-key.json)
 - **환경 변수**: `GOOGLE_APPLICATION_CREDENTIALS`
@@ -20,6 +22,7 @@ alwaysApply: false
 ### 임베딩 생성
 
 #### 텍스트 임베딩
+
 ```python
 # utils/embeddings.py에서 구현
 from .utils.embeddings import get_text_embedding
@@ -28,6 +31,7 @@ embedding_model, query_vec = get_text_embedding("검색어")
 ```
 
 #### 이미지 임베딩
+
 ```python
 # Celery 태스크로 비동기 처리
 from .tasks import generate_image_embedding
@@ -37,6 +41,7 @@ generate_image_embedding.delay(image_id)
 ```
 
 ### 벡터 저장
+
 - **데이터베이스**: PostgreSQL + pgvector
 - **필드**: `VectorField(dimensions=1408)`
 - **인덱스**: IVFFlat 인덱스 사용
@@ -44,11 +49,13 @@ generate_image_embedding.delay(image_id)
 ## 이미지 처리
 
 ### 지원 형식
+
 - **JPEG** (.jpg, .jpeg)
 - **PNG** (.png)
 - **제한**: 파일 크기 및 확장자 검증
 
 ### EXIF 정보 추출
+
 ```python
 # utils/image_processing.py에서 구현
 from .utils.image_processing import process_single_image
@@ -58,26 +65,30 @@ obj = process_single_image(image_file, date_taken, location, tags)
 ```
 
 ### 중복 방지
+
 - **ImageUniqueID**: EXIF에서 추출한 고유 식별자
 - **중복 체크**: 저장 전 동일 ID 확인
 
 ## 벡터 검색
 
 ### 유사도 계산
+
 ```sql
 -- pgvector의 L2 거리 사용
-SELECT *, embedding <-> '[vector]'::vector as distance 
-FROM image_embedding 
-ORDER BY distance 
+SELECT *, embedding <-> '[vector]'::vector as distance
+FROM image_embedding
+ORDER BY distance
 LIMIT 20;
 ```
 
 ### 검색 최적화
+
 - **쿼리 캐싱**: 동일한 검색어 재사용
 - **결과 제한**: 기본 20개, 최대 50개
 - **인덱스**: IVFFlat 인덱스로 검색 속도 향상
 
 ### 검색 필터링
+
 ```python
 # 태그 기반 필터링
 qs = qs.filter(tags__name__icontains=tag)
@@ -92,20 +103,23 @@ qs = qs.filter(date_taken_exif__date__gte=date_from)
 ## 성능 최적화
 
 ### 비동기 처리
+
 - **Celery**: 임베딩 생성 작업 큐
 - **Redis**: 브로커 및 결과 저장소
 - **상태 관리**: pending → processing → done/failed
 
 ### 메모리 관리
+
 - **이미지 크기**: 업로드 시 적절한 크기로 조정
 - **벡터 캐싱**: 자주 사용되는 쿼리 결과 캐싱
 - **배치 처리**: 대량 이미지 처리 시 배치 단위로 분할
 
 ### 데이터베이스 최적화
+
 ```sql
 -- 벡터 인덱스 생성
-CREATE INDEX ON image_embedding 
-USING ivfflat (embedding vector_l2_ops) 
+CREATE INDEX ON image_embedding
+USING ivfflat (embedding vector_l2_ops)
 WITH (lists = 100);
 
 -- 일반 인덱스
@@ -117,6 +131,7 @@ CREATE INDEX ON image_embedding (date_taken_user);
 ## 오류 처리
 
 ### API 오류
+
 ```python
 try:
     embedding_model, query_vec = get_text_embedding(query_text)
@@ -127,11 +142,13 @@ except Exception as e:
 ```
 
 ### 임베딩 실패 처리
+
 - **상태 업데이트**: `embedding_status = 'failed'`
 - **오류 메시지**: `embedding_error` 필드에 저장
 - **재시도**: 수동으로 재처리 가능
 
 ### 네트워크 오류
+
 - **타임아웃**: 적절한 타임아웃 설정
 - **재시도**: 지수 백오프로 재시도
 - **폴백**: 오류 시 기본 동작 제공
@@ -139,6 +156,7 @@ except Exception as e:
 ## 모니터링
 
 ### 로깅
+
 ```python
 import logging
 
@@ -152,12 +170,14 @@ logger.info(f"Search completed in {duration:.2f}s")
 ```
 
 ### 메트릭 수집
+
 - **임베딩 생성 시간**: 평균 처리 시간 모니터링
 - **검색 응답 시간**: 사용자 경험 개선
 - **오류율**: API 안정성 확인
 - **사용량**: API 호출 횟수 및 비용 관리
 
 ### 알림 설정
+
 - **임베딩 실패**: 높은 실패율 시 알림
 - **API 한도**: 사용량 한도 도달 시 알림
 - **성능 저하**: 응답 시간 증가 시 알림
@@ -165,16 +185,19 @@ logger.info(f"Search completed in {duration:.2f}s")
 ## 보안 고려사항
 
 ### API 키 관리
+
 - **환경 변수**: `.env` 파일에 저장
 - **접근 제한**: 필요한 권한만 부여
 - **정기 갱신**: 키 정기적 갱신
 
 ### 데이터 보호
+
 - **개인정보**: GPS 좌표 등 민감 정보 처리 주의
 - **파일 접근**: 업로드된 이미지 접근 제한
 - **로그 관리**: 민감 정보 로그에서 제외
 
 ### 입력 검증
+
 ```python
 # 검색어 검증 (영어만 허용)
 if not re.fullmatch(r"[A-Za-z0-9 ,]+", query_text):
@@ -189,10 +212,12 @@ if not any(file.name.lower().endswith(ext) for ext in allowed_extensions):
 ## 테스트
 
 ### 단위 테스트
+
 - [test/embedding_test.py](mdc:test/embedding_test.py) - 임베딩 기능 테스트
 - [test/gemini_count_tokens.py](mdc:test/gemini_count_tokens.py) - 토큰 사용량 테스트
 
 ### 통합 테스트
+
 ```python
 # 이미지 업로드 → 임베딩 생성 → 검색 전체 플로우 테스트
 def test_full_image_search_flow():
@@ -203,6 +228,7 @@ def test_full_image_search_flow():
 ```
 
 ### 성능 테스트
+
 - **부하 테스트**: 동시 업로드 처리 능력
 - **검색 성능**: 대용량 데이터에서 검색 속도
 - **메모리 사용량**: 장시간 운영 시 메모리 누수 확인
@@ -210,13 +236,13 @@ def test_full_image_search_flow():
 ## 향후 개선 계획
 
 ### 모델 업그레이드
+
 - **캡션 생성**: 이미지 설명 자동 생성
 - **다국어 지원**: 한국어 검색어 처리
 - **시맨틱 검색**: 더 정확한 의미 기반 검색
 
 ### 기능 확장
+
 - **자동 태깅**: AI 기반 자동 태그 생성
 - **이미지 분류**: 카테고리별 자동 분류
 - **유사 이미지**: 시각적 유사성 기반 검색
-
-
