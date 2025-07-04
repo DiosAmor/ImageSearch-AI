@@ -235,7 +235,7 @@ def image_search(request):
                 )
 
         # 날짜 범위 검증
-        if date_from or date_to:
+        if (date_from and date_from.strip()) or (date_to and date_to.strip()):
             is_valid, error = DateValidator.validate_date_range(date_from, date_to)
             if not is_valid:
                 return render(

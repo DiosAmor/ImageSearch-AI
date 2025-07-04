@@ -146,7 +146,6 @@ def validate_upload_data(
     date_taken: str = None,
     location: str = None,
     tags: str = None,
-    skip_file_validation: bool = False,
 ) -> Tuple[bool, List[str]]:
     """업로드 데이터를 종합적으로 검증합니다.
 
@@ -163,15 +162,21 @@ def validate_upload_data(
     """
     errors = []
 
-    # 파일 검증 (skip_file_validation이 False일 때만)
-    if not skip_file_validation:
-        if not files:
-            errors.append("업로드할 파일을 선택해주세요.")
-        else:
-            for file in files:
-                is_valid, error = FileValidator.validate_image_file(file)
-                if not is_valid:
-                    errors.append(f"{file.name}: {error}")
+    if not files:
+        errors.append("업로드할 파일을 선택해주세요.")
+    else:
+        for file in files:
+            is_valid, error = FileValidator.validate_image_file(file)
+            if not is_valid:
+                errors.append(f"{file.name}: {error}")
+
+    # 날짜 검증
+    if date_taken and date_taken.strip():
+        # DateValidator의 validate_date_range를 활용하여 단일 날짜 검증
+        # date_from과 date_to에 같은 날짜를 넣어서 검증
+        is_valid, error = DateValidator.validate_date_range(date_taken, date_taken)
+        if not is_valid:
+            errors.append(f"촬영 날짜: {error}")
 
     # 태그 검증
     if tags:
